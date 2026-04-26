@@ -10,9 +10,9 @@
 <body>
 
 <nav id="nav">
-  <div class="nav-logo"><a href="main.html">KB<span style="color:var(--dim);font-weight:400"> // AI.SYS</span></a></div>
+  <div class="nav-logo"><a href="index.html">KB<span style="color:var(--dim);font-weight:400"> // AI</span></a></div>
   <ul class="nav-links">
-    <li><a href="main.html">MAIN</a></li>
+    <li><a href="index.html">MAIN</a></li>
     <li><a href="2048.html">2048</a></li>
     <li><a href="npuzzle.html">N-PUZZLE</a></li>
     <li><a href="sudoku.html" class="act">SUDOKU</a></li>
@@ -25,7 +25,7 @@
   <!-- Header -->
   <div class="proj-header">
     <div class="proj-header-left">
-      <a class="back-btn" href="main.html">← MAIN</a>
+      <a class="back-btn" href="index.html">← MAIN</a>
       <div class="proj-pg-tag">03 // CONSTRAINT SATISFACTION</div>
       <div class="proj-pg-title neon-purple">SUDOKU CSP</div>
       <div class="proj-pg-sub">Backtracking · MRV Heuristic · Forward Checking · 400 Puzzles · 100% Accuracy</div>
@@ -102,7 +102,7 @@
             <div class="term-out"><span class="l-d">// Select a puzzle and click SOLVE</span></div>
           </div>
           <div class="term-in-row">
-            <span class="term-prompt" style="color:var(--purple)">user@ai-sys:~$</span>
+            <span class="term-prompt" style="color:var(--purple)">user@ai:~$</span>
             <span class="term-in" id="sdk-term-cmd" style="cursor:default;user-select:text;color:var(--purple)">python3 sudoku.py &lt;puzzle&gt;</span>
           </div>
         </div>
@@ -333,7 +333,7 @@ function sdkLoadPuzzle(idx) {
 
   // Write terminal boot message
   sdkWriteTerminal([
-    `<span class="l-g">user@ai-sys:~$</span> <span class="l-w" style="color:var(--purple)">${sdkTermCmd(idx)}</span>`,
+    `<span class="l-g">user@ai:~$</span> <span class="l-w" style="color:var(--purple)">${sdkTermCmd(idx)}</span>`,
     `<span class="l-d">// Loaded puzzle #${idx+1} — ${sdkGivens.filter(Boolean).length} givens, ${81 - sdkGivens.filter(Boolean).length} empty cells</span>`,
     `<span class="l-d">// Solver pre-computed ${sdkTrace.length} steps (${sdkTrace.filter(s=>s.bt).length} backtracks)</span>`,
     `<span style="color:var(--purple)">// Click ▶ SOLVE to begin playback</span>`,
