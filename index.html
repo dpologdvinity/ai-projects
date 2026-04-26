@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAITLYN BASSFORD // AI SYSTEMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo"><a href="main.html">KB<span style="color:var(--dim);font-weight:400"> // AI.SYS</span></a></div>
+  <ul class="nav-links">
+    <li><a href="main.html" class="act">MAIN</a></li>
+    <li><a href="2048.html">2048</a></li>
+    <li><a href="npuzzle.html">N-PUZZLE</a></li>
+    <li><a href="sudoku.html">SUDOKU</a></li>
+  </ul>
+</nav>
+
+<div class="page act" id="page-main">
+  <!-- Background FX -->
+  <div class="grid-floor"><div class="grid-floor-inner"></div></div>
+  <div class="tunnel-glow"></div>
+  <div class="glow-blob b1"></div>
+  <div class="glow-blob b2"></div>
+  <div class="glow-blob b3"></div>
+  <div class="crystal c1"></div>
+  <div class="crystal c2"></div>
+  <div class="crystal c3"></div>
+  <div class="crystal c4"></div>
+  <div class="crystal c5"></div>
+
+  <canvas id="particles-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1"></canvas>
+
+  <div class="hero-content">
+    <div class="hero-tag">[ AI SYSTEMS PORTFOLIO ]</div>
+    <h1 class="hero-name">
+      <span class="line1" data-text="KAITLYN">KAITLYN</span>
+      <span class="line2" data-text="BASSFORD">BASSFORD</span>
+    </h1>
+    <div class="hero-sub">Columbia CS · Artificial Intelligence</div>
+    <p class="hero-desc">Autonomous agents that search, reason, and adapt — built from scratch in Python, translated line-for-line into JavaScript.</p>
+
+    <div class="project-cards">
+      <a class="proj-card-main" href="2048.html">
+        <div class="pcm-inner">
+          <div class="pcm-num">01 // AI ADVERSARIAL</div>
+          <div class="pcm-icon">🧠</div>
+          <div class="pcm-title cyan">2048 AI</div>
+          <div class="pcm-desc">Expectiminimax agent with iterative deepening, alpha-beta pruning, and a 6-component evaluation function.</div>
+          <div class="pcm-enter">ENTER →</div>
+        </div>
+      </a>
+      <a class="proj-card-main" href="npuzzle.html">
+        <div class="pcm-inner pink-card">
+          <div class="pcm-num">02 // STATE-SPACE SEARCH</div>
+          <div class="pcm-icon">🔮</div>
+          <div class="pcm-title pink">N-PUZZLE</div>
+          <div class="pcm-desc">A*, BFS, DFS, IDS, UCS, and Greedy Best-First solve the N-puzzle with real-time agent visualization.</div>
+          <div class="pcm-enter">ENTER →</div>
+        </div>
+      </a>
+      <a class="proj-card-main" href="sudoku.html">
+        <div class="pcm-inner purple-card">
+          <div class="pcm-num">03 // CONSTRAINT SATISFACTION</div>
+          <div class="pcm-icon">⚡</div>
+          <div class="pcm-title purple">SUDOKU CSP</div>
+          <div class="pcm-desc">Backtracking CSP solver with MRV heuristic and forward checking. 100% accuracy on 400 complex puzzles.</div>
+          <div class="pcm-enter">ENTER →</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('particles-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let W, H, particles;
+  function resize() { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; }
+  function init() {
+    resize();
+    particles = Array.from({length: 60}, () => ({
+      x: Math.random()*W, y: Math.random()*H,
+      vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4,
+      r: Math.random()*1.5+0.5, a: Math.random()
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x<0) p.x=W; if (p.x>W) p.x=0;
+      if (p.y<0) p.y=H; if (p.y>H) p.y=0;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(0,245,255,${p.a*0.5})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', init);
+  init(); draw();
+})();
+</script>
+</body>
+</html>

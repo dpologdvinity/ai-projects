@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N-PUZZLE // KB</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo"><a href="main.html">KB<span style="color:var(--dim);font-weight:400"> // AI.SYS</span></a></div>
+  <ul class="nav-links">
+    <li><a href="main.html">MAIN</a></li>
+    <li><a href="2048.html">2048</a></li>
+    <li><a href="npuzzle.html" class="act">N-PUZZLE</a></li>
+    <li><a href="sudoku.html">SUDOKU</a></li>
+  </ul>
+</nav>
+
+<div class="page act" id="page-npuzzle">
+<div class="proj-page">
+
+  <!-- Header -->
+  <div class="proj-header">
+    <div class="proj-header-left">
+      <a class="back-btn" href="main.html">← MAIN</a>
+      <div class="proj-pg-tag">02 // STATE-SPACE SEARCH</div>
+      <div class="proj-pg-title neon-pink">N-PUZZLE AI</div>
+      <div class="proj-pg-sub">A* · BFS · DFS · IDS · Greedy Best-First · UCS</div>
+    </div>
+    <div class="proj-header-right">
+      <div class="stat-chips">
+        <span class="stat-chip pink">ALGORITHM <span class="val" id="np-stat-algo">—</span></span>
+        <span class="stat-chip">MOVES <span class="val" id="np-stat-moves">—</span></span>
+        <span class="stat-chip green">NODES <span class="val" id="np-stat-nodes">—</span></span>
+        <span class="stat-chip">STATUS <span class="val" id="np-stat-status">IDLE</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="proj-body">
+
+    <!-- GAME COLUMN -->
+    <div class="proj-game-col">
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem">
+
+        <!-- Grid -->
+        <div id="np-grid-wrap" style="position:relative">
+          <div id="np-grid" class="np-grid"></div>
+        </div>
+
+        <!-- Progress bar -->
+        <div style="width:100%;max-width:360px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">SOLUTION PROGRESS</span>
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--pink)" id="np-progress-lbl">0 / 0</span>
+          </div>
+          <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+            <div id="np-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--pink),var(--purple));transition:width 0.2s;box-shadow:0 0 8px var(--pink)"></div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center">
+          <button class="cyber-btn pink" id="np-btn-solve" onclick="npSolve()"><span class="btn-txt">▶ SOLVE</span></button>
+          <button class="cyber-btn" id="np-btn-pause" onclick="npPause()" disabled><span class="btn-txt">⏸ PAUSE</span></button>
+          <button class="cyber-btn" id="np-btn-back" onclick="npStepBack()" disabled><span class="btn-txt">◀ STEP</span></button>
+          <button class="cyber-btn" id="np-btn-fwd" onclick="npStepFwd()" disabled><span class="btn-txt">STEP ▶</span></button>
+          <button class="cyber-btn" onclick="npReset()"><span class="btn-txt">↺ RESET</span></button>
+        </div>
+
+        <!-- Speed -->
+        <div style="width:100%;max-width:380px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">PLAYBACK SPEED</span>
+            <span style="font-family:var(--mono);font-size:0.72rem;color:var(--pink)" id="np-speed-lbl">300ms/move</span>
+          </div>
+          <input type="range" class="cyber-slider" min="50" max="2000" step="50" value="300"
+                 id="np-speed" oninput="npSpeedChange(this.value)"
+                 style="background:linear-gradient(90deg,var(--pink),var(--purple))">
+          <div class="cyber-range-label"><span>FAST (50ms)</span><span>SLOW (2000ms)</span></div>
+        </div>
+
+      </div><!-- /board outer -->
+
+      <!-- Terminal -->
+      <div style="margin-top:1.8rem">
+        <div class="section-title pink-ttl">TERMINAL DISPLAY</div>
+        <div class="cyber-panel pink-panel">
+          <div class="panel-hdr">
+            <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+            <div class="ttl" style="color:var(--pink)">bash — puzzle.py</div>
+          </div>
+          <div class="term-body" id="np-terminal">
+            <div class="term-out"><span class="l-d">// Configure puzzle on the right, then click SOLVE</span></div>
+          </div>
+          <div class="term-in-row">
+            <span class="term-prompt">user@ai-sys:~$</span>
+            <span class="term-in" id="np-term-cmd" style="cursor:default;user-select:text;color:var(--pink)">python3 puzzle.py ast 1,2,5,3,4,0,6,7,8</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent log -->
+      <div style="margin-top:1.8rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <div class="section-title pink-ttl" style="margin:0">SEARCH LOG</div>
+          <div style="display:flex;align-items:center;gap:0.7rem">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">LOG EVERY</span>
+            <select class="cyber-select" id="np-log-freq" style="width:90px;border-color:var(--pink);color:var(--pink)">
+              <option value="1">Every step</option>
+              <option value="5">Every 5</option>
+              <option value="10">Every 10</option>
+            </select>
+            <button class="cyber-btn" style="padding:0.3rem 0.8rem;font-size:0.6rem" onclick="npClearLog()"><span class="btn-txt">CLEAR</span></button>
+          </div>
+        </div>
+        <div class="agent-log" id="np-log" style="max-height:260px;border-color:rgba(255,0,160,0.3)">
+          <span class="log-info">// Search log will appear here once solved</span>
+        </div>
+      </div>
+
+    </div><!-- /game-col -->
+
+    <!-- CONTROL COLUMN -->
+    <div class="proj-ctrl-col">
+
+      <!-- Puzzle setup -->
+      <div>
+        <div class="section-title pink-ttl">PUZZLE SETUP</div>
+        <div style="display:flex;flex-direction:column;gap:0.8rem">
+
+          <div>
+            <div style="font-family:var(--mono);font-size:0.68rem;color:var(--dim);margin-bottom:0.3rem">PUZZLE SIZE</div>
+            <select class="cyber-select" id="np-size" style="width:100%;border-color:rgba(255,0,160,0.4)" onchange="npSizeChange()">
+              <option value="3">8-Puzzle (3×3)</option>
+              <option value="4">15-Puzzle (4×4)</option>
+            </select>
+          </div>
+
+          <div>
+            <div style="font-family:var(--mono);font-size:0.68rem;color:var(--dim);margin-bottom:0.3rem">INITIAL STATE (comma-separated, 0 = blank)</div>
+            <input type="text" class="cyber-input" id="np-state-input" value="1,2,5,3,4,0,6,7,8"
+                   style="width:100%;border-color:rgba(255,0,160,0.4)" oninput="npUpdateTermCmd()">
+            <div id="np-state-error" style="font-family:var(--mono);font-size:0.65rem;color:var(--red);margin-top:0.2rem;min-height:1em"></div>
+          </div>
+
+          <div style="display:flex;gap:0.5rem">
+            <button class="cyber-btn pink" style="flex:1" onclick="npLoadState()"><span class="btn-txt">LOAD</span></button>
+            <button class="cyber-btn" style="flex:1" onclick="npRandom()"><span class="btn-txt">⚄ RANDOM</span></button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Algorithm -->
+      <div>
+        <div class="section-title pink-ttl">ALGORITHM</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem">
+          <select class="cyber-select" id="np-algo" style="width:100%;border-color:rgba(255,0,160,0.4)" onchange="npAlgoChange()">
+            <option value="ast">A* (Manhattan Distance)</option>
+            <option value="greedy">Greedy Best-First</option>
+            <option value="ucs">UCS (Uniform Cost)</option>
+            <option value="bfs">BFS (Breadth-First)</option>
+            <option value="ids">IDS (Iterative Deepening)</option>
+            <option value="dfs">DFS (Depth-First)</option>
+          </select>
+          <div class="heuristic-card" style="padding:0.7rem">
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)" id="np-algo-desc">Finds the optimal path using f = g(n) + h(n). Guaranteed to find the shortest solution.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Solver stats -->
+      <div>
+        <div class="section-title pink-ttl">SOLVER STATS</div>
+        <div style="display:flex;flex-direction:column;gap:0.4rem">
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">PATH LENGTH</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--pink)" id="np-lv-path">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">NODES EXPANDED</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--cyan)" id="np-lv-nodes">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">MAX SEARCH DEPTH</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--cyan)" id="np-lv-depth">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">SOLVE TIME</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--green)" id="np-lv-time">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">CURRENT STEP</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--purple)" id="np-lv-step">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div>
+        <div class="section-title green-ttl">ALGORITHM NOTES</div>
+        <div style="display:flex;flex-direction:column;gap:0.6rem">
+          <div class="heuristic-card" style="padding:0.7rem">
+            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--pink);margin-bottom:0.3rem">HEURISTIC: MANHATTAN DISTANCE</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Sum of distances each tile must travel to reach its goal. Admissible — never overestimates the true cost.</div>
+          </div>
+          <div class="heuristic-card" style="padding:0.7rem">
+            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--yellow);margin-bottom:0.3rem">⚠ BFS / DFS / IDS ON 15-PUZZLE</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">15-Puzzle has ~10¹³ states. BFS/DFS/IDS are capped at 500k nodes. Use A* or Greedy for 15-Puzzle.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /ctrl-col -->
+  </div><!-- /proj-body -->
+</div><!-- /proj-page -->
+</div><!-- /page-npuzzle -->
+
+<!-- ════════════════════════════════════════════════════
+     SUDOKU PAGE
+════════════════════════════════════════════════════ -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  N-PUZZLE ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Min-Heap ──
+class MinHeap {
+  constructor(cmp) { this.h=[]; this.cmp=cmp||((a,b)=>a[0]-b[0]); }
+  push(item) { this.h.push(item); this._up(this.h.length-1); }
+  pop() { const top=this.h[0]; const last=this.h.pop(); if(this.h.length){this.h[0]=last;this._down(0);} return top; }
+  empty() { return this.h.length===0; }
+  _up(i) { while(i>0){const p=(i-1)>>1;if(this.cmp(this.h[i],this.h[p])<0){[this.h[i],this.h[p]]=[this.h[p],this.h[i]];i=p;}else break;} }
+  _down(i) { const n=this.h.length;while(true){let s=i,l=2*i+1,r=2*i+2;if(l<n&&this.cmp(this.h[l],this.h[s])<0)s=l;if(r<n&&this.cmp(this.h[r],this.h[s])<0)s=r;if(s===i)break;[this.h[i],this.h[s]]=[this.h[s],this.h[i]];i=s;} }
+}
+
+// ── Helpers ──
+function npArrEq(a,b){for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;}
+
+function npManhattan(state,n){
+  let d=0;
+  for(let i=0;i<state.length;i++){const v=state[i];if(v===0)continue;d+=Math.abs(Math.floor(i/n)-Math.floor(v/n))+Math.abs((i%n)-(v%n));}
+  return d;
+}
+
+function npNeighbors(state,n){
+  const bi=state.indexOf(0),br=Math.floor(bi/n),bc=bi%n,out=[];
+  if(br>0){const s=[...state];[s[bi],s[bi-n]]=[s[bi-n],s[bi]];out.push({state:s,action:'Up'});}
+  if(br<n-1){const s=[...state];[s[bi],s[bi+n]]=[s[bi+n],s[bi]];out.push({state:s,action:'Down'});}
+  if(bc>0){const s=[...state];[s[bi],s[bi-1]]=[s[bi-1],s[bi]];out.push({state:s,action:'Left'});}
+  if(bc<n-1){const s=[...state];[s[bi],s[bi+1]]=[s[bi+1],s[bi]];out.push({state:s,action:'Right'});}
+  return out;
+}
+
+function npIsSolvable(state,n){
+  const arr=state.filter(v=>v!==0);let inv=0;
+  for(let i=0;i<arr.length;i++)for(let j=i+1;j<arr.length;j++)if(arr[i]>arr[j])inv++;
+  if(n%2===1)return inv%2===0;
+  const blankRowFromBottom=n-Math.floor(state.indexOf(0)/n);
+  return(inv+blankRowFromBottom)%2===1;
+}
+
+// ── BFS ──
+function npRunBFS(start,n,limit){
+  const goal=Array.from({length:n*n},(_,i)=>i);
+  if(npArrEq(start,goal))return{path:[{state:start,action:'Initial'}],nodesExpanded:0,maxDepth:0};
+  const queue=[{state:start,path:[{state:start,action:'Initial'}]}];
+  const visited=new Set([start.join(',')]);
+  let ne=0,md=0;
+  while(queue.length){
+    if(ne>=limit)return{error:`Node limit (${limit.toLocaleString()}) reached`,nodesExpanded:ne,maxDepth:md};
+    const {state,path}=queue.shift();ne++;
+    if(path.length-1>md)md=path.length-1;
+    for(const {state:ns,action} of npNeighbors(state,n)){
+      const k=ns.join(',');if(visited.has(k))continue;
+      const p2=[...path,{state:ns,action}];
+      if(npArrEq(ns,goal))return{path:p2,nodesExpanded:ne,maxDepth:p2.length-1};
+      visited.add(k);queue.push({state:ns,path:p2});
+    }
+  }
+  return{error:'No solution found',nodesExpanded:ne,maxDepth:md};
+}
+
+// ── DFS (with visited set to prevent cycles) ──
+function npRunDFS(start,n,limit){
+  const goal=Array.from({length:n*n},(_,i)=>i);
+  if(npArrEq(start,goal))return{path:[{state:start,action:'Initial'}],nodesExpanded:0,maxDepth:0};
+  const stack=[{state:start,path:[{state:start,action:'Initial'}]}];
+  const visited=new Set([start.join(',')]);
+  let ne=0,md=0;
+  while(stack.length){
+    if(ne>=limit)return{error:`Node limit (${limit.toLocaleString()}) reached`,nodesExpanded:ne,maxDepth:md};
+    const {state,path}=stack.pop();ne++;
+    if(path.length-1>md)md=path.length-1;
+    for(const {state:ns,action} of npNeighbors(state,n).reverse()){
+      const k=ns.join(',');if(visited.has(k))continue;
+      const p2=[...path,{state:ns,action}];
+      if(npArrEq(ns,goal))return{path:p2,nodesExpanded:ne,maxDepth:p2.length-1};
+      visited.add(k);stack.push({state:ns,path:p2});
+    }
+  }
+  return{error:'No solution found',nodesExpanded:ne,maxDepth:md};
+}
+
+// ── IDS ──
+function npRunIDS(start,n,limit){
+  const goal=Array.from({length:n*n},(_,i)=>i);
+  if(npArrEq(start,goal))return{path:[{state:start,action:'Initial'}],nodesExpanded:0,maxDepth:0};
+  let totalNe=0;
+  for(let d=0;d<300;d++){
+    const r=_npDLS(start,goal,n,d,limit-totalNe);
+    totalNe+=r.expanded;
+    if(r.found)return{path:r.path,nodesExpanded:totalNe,maxDepth:d};
+    if(r.exceeded)return{error:`Node limit (${limit.toLocaleString()}) reached`,nodesExpanded:totalNe,maxDepth:d};
+    if(!r.cutoff)return{error:'No solution found',nodesExpanded:totalNe,maxDepth:d};
+  }
+  return{error:'IDS depth exceeded',nodesExpanded:totalNe,maxDepth:0};
+}
+function _npDLS(start,goal,n,depthLimit,nodeLimit){
+  const stack=[{state:start,path:[{state:start,action:'Initial'}],visited:new Set([start.join(',')])}];
+  let exp=0,cutoff=false;
+  while(stack.length){
+    if(exp>=nodeLimit)return{found:false,cutoff:true,exceeded:true,expanded:exp,path:null};
+    const {state,path,visited}=stack.pop();exp++;
+    if(path.length-1>=depthLimit){cutoff=true;continue;}
+    for(const {state:ns,action} of npNeighbors(state,n).reverse()){
+      const k=ns.join(',');if(visited.has(k))continue;
+      const p2=[...path,{state:ns,action}];
+      if(npArrEq(ns,goal))return{found:true,cutoff:false,exceeded:false,expanded:exp,path:p2};
+      const v2=new Set(visited);v2.add(k);
+      stack.push({state:ns,path:p2,visited:v2});
+    }
+  }
+  return{found:false,cutoff,exceeded:false,expanded:exp,path:null};
+}
+
+// ── A* ──
+function npRunAStar(start,n,limit){
+  const goal=Array.from({length:n*n},(_,i)=>i);
+  if(npArrEq(start,goal))return{path:[{state:start,action:'Initial'}],nodesExpanded:0,maxDepth:0};
+  const heap=new MinHeap((a,b)=>a.f-b.f);
+  heap.push({f:npManhattan(start,n),g:0,state:start,path:[{state:start,action:'Initial'}]});
+  const gMap={[start.join(',')]:0};
+  const visited=new Set();
+  let ne=0,md=0;
+  while(!heap.empty()){
+    if(ne>=limit)return{error:`Node limit (${limit.toLocaleString()}) reached`,nodesExpanded:ne,maxDepth:md};
+    const {g,state,path}=heap.pop();const k=state.join(',');
+    if(visited.has(k))continue;visited.add(k);ne++;
+    if(path.length-1>md)md=path.length-1;
+    if(npArrEq(state,goal))return{path,nodesExpanded:ne,maxDepth:md};
+    for(const {state:ns,action} of npNeighbors(state,n)){
+      const nk=ns.join(',');if(visited.has(nk))continue;
+      const ng=g+1;
+      if(ng<(gMap[nk]??Infinity)){gMap[nk]=ng;heap.push({f:ng+npManhattan(ns,n),g:ng,state:ns,path:[...path,{state:ns,action}]});}
+    }
+  }
+  return{error:'No solution found',nodesExpanded:ne,maxDepth:md};
+}
+
+// ── Greedy Best-First ──
+function npRunGreedy(start,n,limit){
+  const goal=Array.from({length:n*n},(_,i)=>i);
+  if(npArrEq(start,goal))return{path:[{state:start,action:'Initial'}],nodesExpanded:0,maxDepth:0};
+  const heap=new MinHeap((a,b)=>a.h-b.h);
+  heap.push({h:npManhattan(start,n),state:start,path:[{state:start,action:'Initial'}]});
+  const visited=new Set([start.join(',')]);
+  let ne=0,md=0;
+  while(!heap.empty()){
+    if(ne>=limit)return{error:`Node limit (${limit.toLocaleString()}) reached`,nodesExpanded:ne,maxDepth:md};
+    const {state,path}=heap.pop();ne++;
+    if(path.length-1>md)md=path.length-1;
+    if(npArrEq(state,goal))return{path,nodesExpanded:ne,maxDepth:md};
+    for(const {state:ns,action} of npNeighbors(state,n)){
+      const nk=ns.join(',');if(visited.has(nk))continue;
+      visited.add(nk);heap.push({h:npManhattan(ns,n),state:ns,path:[...path,{state:ns,action}]});
+    }
+  }
+  return{error:'No solution found',nodesExpanded:ne,maxDepth:md};
+}
+
+// ── UCS ──
+function npRunUCS(start,n,limit){
+  const goal=Array.from({length:n*n},(_,i)=>i);
+  if(npArrEq(start,goal))return{path:[{state:start,action:'Initial'}],nodesExpanded:0,maxDepth:0};
+  const heap=new MinHeap((a,b)=>a.g-b.g);
+  heap.push({g:0,state:start,path:[{state:start,action:'Initial'}]});
+  const gMap={[start.join(',')]:0};
+  const visited=new Set();
+  let ne=0,md=0;
+  while(!heap.empty()){
+    if(ne>=limit)return{error:`Node limit (${limit.toLocaleString()}) reached`,nodesExpanded:ne,maxDepth:md};
+    const {g,state,path}=heap.pop();const k=state.join(',');
+    if(visited.has(k))continue;visited.add(k);ne++;
+    if(path.length-1>md)md=path.length-1;
+    if(npArrEq(state,goal))return{path,nodesExpanded:ne,maxDepth:md};
+    for(const {state:ns,action} of npNeighbors(state,n)){
+      const nk=ns.join(',');if(visited.has(nk))continue;
+      const ng=g+1;
+      if(ng<(gMap[nk]??Infinity)){gMap[nk]=ng;heap.push({g:ng,state:ns,path:[...path,{state:ns,action}]});}
+    }
+  }
+  return{error:'No solution found',nodesExpanded:ne,maxDepth:md};
+}
+
+// ── Playback state ──
+let npPath=[],npStep=0,npRunning=false,npTimer=null,npSpeed=300;
+let npStartState=[1,2,5,3,4,0,6,7,8],npN=3;
+
+const NP_ALGO_DESC={
+  ast:    'Finds the optimal path using f = g(n) + h(n). Guaranteed shortest solution.',
+  greedy: 'Uses only heuristic h(n). Very fast but not guaranteed to be optimal.',
+  bfs:    'Explores all nodes level-by-level. Optimal, but high memory use.',
+  ucs:    'Expands by path cost. Equivalent to BFS for unit-cost moves.',
+  ids:    'Repeated depth-limited DFS with increasing depth bounds. Optimal and memory-efficient.',
+  dfs:    'Explores deep paths first. Not optimal — may find long solution. Cycle-checking applied.',
+};
+
+// ── Grid render ──
+function npRenderGrid(state,movedIdx){
+  const grid=document.getElementById('np-grid');
+  const cs=npN===3?80:62,fs=npN===3?'1.6rem':'1.1rem';
+  grid.style.gridTemplateColumns=`repeat(${npN},${cs}px)`;
+  grid.style.gridTemplateRows=`repeat(${npN},${cs}px)`;
+  grid.innerHTML='';
+  state.forEach((val,idx)=>{
+    const div=document.createElement('div');
+    div.className='np-tile'+(val===0?' np-blank':'')+(idx===movedIdx?' np-moved':'');
+    div.style.cssText=`width:${cs}px;height:${cs}px;font-size:${fs}`;
+    if(val!==0)div.textContent=val;
+    grid.appendChild(div);
+  });
+}
+
+function npUpdateProgress(){
+  const total=Math.max(1,npPath.length-1);
+  const pct=npPath.length<=1?0:((npStep/total)*100).toFixed(1);
+  document.getElementById('np-progress-bar').style.width=pct+'%';
+  document.getElementById('np-progress-lbl').textContent=`${npStep} / ${npPath.length<=1?0:total}`;
+  document.getElementById('np-lv-step').textContent=npStep;
+  document.getElementById('np-stat-moves').textContent=npPath.length<=1?'—':total;
+}
+
+function npMaybeLog(step){
+  if(!npPath.length)return;
+  const freq=parseInt(document.getElementById('np-log-freq').value);
+  if(step%freq!==0&&step!==npPath.length-1)return;
+  const e=npPath[step];
+  const col=step===0?'log-info':'log-move';
+  npAppendLog(`<span class="${col}">[Step ${String(step).padStart(4,' ')}]</span> <span class="log-val">${e.action}</span>  <span class="log-best">h:${npManhattan(e.state,npN)}</span>`);
+}
+
+function npAppendLog(html){
+  const el=document.getElementById('np-log');
+  const ph=el.querySelector('span.log-info');
+  if(ph&&ph.textContent.includes('//'))el.innerHTML='';
+  const line=document.createElement('div');line.innerHTML=html;
+  el.appendChild(line);el.scrollTop=el.scrollHeight;
+}
+
+function npClearLog(){document.getElementById('np-log').innerHTML='<span class="log-info">// Log cleared</span>';}
+
+function npWriteTerminal(lines){
+  const el=document.getElementById('np-terminal');
+  el.innerHTML=lines.map(l=>`<div class="term-out">${l}</div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+// ── Playback ──
+function npPlayNext(){
+  if(!npRunning||npStep>=npPath.length-1){
+    npRunning=false;
+    document.getElementById('np-stat-status').textContent=npStep>=npPath.length-1?'SOLVED ✓':'PAUSED';
+    if(npStep>=npPath.length-1&&npPath.length>1)npFinished();
+    return;
+  }
+  npStep++;
+  const prev=npPath[npStep-1].state;
+  const mi=npPath[npStep].state.findIndex((v,i)=>v!==0&&prev[i]===0);
+  npRenderGrid(npPath[npStep].state,mi);
+  npUpdateProgress();
+  npMaybeLog(npStep);
+  npTimer=setTimeout(npPlayNext,npSpeed);
+}
+
+function npStartPlayback(){
+  if(npRunning)return;
+  npRunning=true;
+  document.getElementById('np-stat-status').textContent='PLAYING';
+  npPlayNext();
+}
+
+function npFinished(){
+  document.querySelectorAll('#np-grid .np-tile:not(.np-blank)').forEach((el,i)=>{
+    setTimeout(()=>{el.style.background='rgba(0,255,136,0.3)';el.style.color='var(--green)';el.style.textShadow='0 0 10px var(--green)';setTimeout(()=>{el.style.background='';el.style.color='';el.style.textShadow='';},500);},i*15);
+  });
+  npAppendLog(`<span style="color:var(--green)">[SOLVED] ${npPath.length-1} moves — goal reached ✓</span>`);
+  document.getElementById('np-stat-status').textContent='SOLVED ✓';
+}
+
+// ── Solve ──
+function _npParseInput(){
+  const str=document.getElementById('np-state-input').value.trim();
+  npN=parseInt(document.getElementById('np-size').value);
+  const parsed=str.split(',').map(s=>parseInt(s.trim()));
+  const errEl=document.getElementById('np-state-error');
+  if(parsed.length!==npN*npN||parsed.some(isNaN)){errEl.textContent=`Need exactly ${npN*npN} comma-separated integers.`;return null;}
+  if(new Set(parsed).size!==npN*npN||parsed.some(v=>v<0||v>=npN*npN)){errEl.textContent=`Values must be 0–${npN*npN-1}, each used once.`;return null;}
+  if(!npIsSolvable(parsed,npN)){errEl.textContent='This configuration is not solvable.';return null;}
+  errEl.textContent='';
+  return parsed;
+}
+
+function npSolve(){
+  const parsed=_npParseInput();
+  if(!parsed)return;
+  const algo=document.getElementById('np-algo').value;
+  const algoLabel=document.getElementById('np-algo').options[document.getElementById('np-algo').selectedIndex].text;
+
+  npPause();
+  npStartState=parsed;
+  npPath=[];npStep=0;
+  npRenderGrid(parsed,-1);
+  npClearLog();
+
+  const limit=npN===3?500000:1000000;
+  document.getElementById('np-stat-status').textContent='SOLVING…';
+  document.getElementById('np-stat-algo').textContent=algo.toUpperCase();
+  document.getElementById('np-btn-solve').disabled=true;
+
+  npWriteTerminal([
+    `<span class="l-g">user@ai-sys:~$</span> <span class="l-w" style="color:var(--pink)">${document.getElementById('np-term-cmd').textContent}</span>`,
+    `<span class="l-d">// Running ${algoLabel} on ${npN}×${npN} puzzle...</span>`,
+  ]);
+
+  setTimeout(()=>{
+    const t0=performance.now();
+    let result;
+    if(algo==='ast')result=npRunAStar(parsed,npN,limit);
+    else if(algo==='greedy')result=npRunGreedy(parsed,npN,limit);
+    else if(algo==='bfs')result=npRunBFS(parsed,npN,limit);
+    else if(algo==='ucs')result=npRunUCS(parsed,npN,limit);
+    else if(algo==='ids')result=npRunIDS(parsed,npN,limit);
+    else result=npRunDFS(parsed,npN,limit);
+    const elapsed=((performance.now()-t0)/1000).toFixed(4);
+
+    document.getElementById('np-btn-solve').disabled=false;
+
+    if(result.error){
+      document.getElementById('np-stat-status').textContent='ERROR';
+      npWriteTerminal([
+        `<span class="l-g">user@ai-sys:~$</span> <span class="l-w" style="color:var(--pink)">${document.getElementById('np-term-cmd').textContent}</span>`,
+        `<span style="color:var(--red)">✗ ${result.error} — nodes expanded: ${result.nodesExpanded.toLocaleString()}</span>`,
+      ]);
+      return;
+    }
+
+    npPath=result.path;npStep=0;
+
+    document.getElementById('np-lv-path').textContent=result.path.length-1;
+    document.getElementById('np-lv-nodes').textContent=result.nodesExpanded.toLocaleString();
+    document.getElementById('np-lv-depth').textContent=result.maxDepth;
+    document.getElementById('np-lv-time').textContent=elapsed+'s';
+    document.getElementById('np-stat-nodes').textContent=result.nodesExpanded.toLocaleString();
+    document.getElementById('np-btn-pause').disabled=false;
+    document.getElementById('np-btn-back').disabled=false;
+    document.getElementById('np-btn-fwd').disabled=false;
+
+    npUpdateProgress();
+
+    npWriteTerminal([
+      `<span class="l-g">user@ai-sys:~$</span> <span class="l-w" style="color:var(--pink)">${document.getElementById('np-term-cmd').textContent}</span>`,
+      `<span class="l-d">// ${algoLabel} · time: ${elapsed}s · nodes: ${result.nodesExpanded.toLocaleString()} · path: ${result.path.length-1} · depth: ${result.maxDepth}</span>`,
+      `<span style="color:var(--pink)">// Animating solution...</span>`,
+    ]);
+
+    npMaybeLog(0);
+    npStartPlayback();
+  },20);
+}
+
+function npPause(){
+  npRunning=false;clearTimeout(npTimer);
+  if(npPath.length>0)document.getElementById('np-stat-status').textContent=npStep>=npPath.length-1?'SOLVED ✓':'PAUSED';
+}
+
+function npStepBack(){
+  npPause();
+  if(npStep>0){npStep--;npRenderGrid(npPath[npStep].state,-1);npUpdateProgress();}
+}
+
+function npStepFwd(){
+  npPause();
+  if(npPath.length>0&&npStep<npPath.length-1){
+    npStep++;
+    const prev=npPath[npStep-1].state;
+    const mi=npPath[npStep].state.findIndex((v,i)=>v!==0&&prev[i]===0);
+    npRenderGrid(npPath[npStep].state,mi);
+    npUpdateProgress();npMaybeLog(npStep);
+    if(npStep>=npPath.length-1)npFinished();
+  }
+}
+
+function npReset(){
+  npPause();npPath=[];npStep=0;
+  npRenderGrid(npStartState,-1);
+  npUpdateProgress();npClearLog();
+  document.getElementById('np-stat-status').textContent='RESET';
+  ['np-stat-moves','np-stat-nodes','np-lv-path','np-lv-nodes','np-lv-depth','np-lv-time','np-lv-step'].forEach(id=>{document.getElementById(id).textContent='—';});
+  document.getElementById('np-btn-pause').disabled=true;
+  document.getElementById('np-btn-back').disabled=true;
+  document.getElementById('np-btn-fwd').disabled=true;
+  npWriteTerminal([`<span class="l-d">// Configure puzzle on the right, then click SOLVE</span>`]);
+}
+
+function npLoadState(){
+  const parsed=_npParseInput();if(!parsed)return;
+  npPause();npStartState=parsed;npPath=[];npStep=0;
+  npRenderGrid(parsed,-1);npUpdateProgress();npClearLog();
+  npUpdateTermCmd();
+  document.getElementById('np-stat-status').textContent='LOADED';
+}
+
+function npRandom(){
+  npN=parseInt(document.getElementById('np-size').value);
+  let arr;
+  do{arr=Array.from({length:npN*npN},(_,i)=>i).sort(()=>Math.random()-0.5);}
+  while(!npIsSolvable(arr,npN));
+  document.getElementById('np-state-input').value=arr.join(',');
+  document.getElementById('np-state-error').textContent='';
+  npPause();npStartState=arr;npPath=[];npStep=0;
+  npRenderGrid(arr,-1);npUpdateProgress();npClearLog();
+  npUpdateTermCmd();
+  document.getElementById('np-stat-status').textContent='LOADED';
+}
+
+function npSizeChange(){
+  npN=parseInt(document.getElementById('np-size').value);
+  const goal=Array.from({length:npN*npN},(_,i)=>i);
+  document.getElementById('np-state-input').value=goal.join(',');
+  document.getElementById('np-state-error').textContent='';
+  npPause();npStartState=goal;npPath=[];npStep=0;
+  npRenderGrid(goal,-1);npUpdateProgress();npUpdateTermCmd();
+}
+
+function npAlgoChange(){
+  const algo=document.getElementById('np-algo').value;
+  document.getElementById('np-algo-desc').textContent=NP_ALGO_DESC[algo]||'';
+  npUpdateTermCmd();
+}
+
+function npSpeedChange(v){npSpeed=parseInt(v);document.getElementById('np-speed-lbl').textContent=v+'ms/move';}
+
+function npUpdateTermCmd(){
+  const algo=document.getElementById('np-algo').value;
+  const state=document.getElementById('np-state-input').value.trim();
+  document.getElementById('np-term-cmd').textContent=`python3 puzzle.py ${algo} ${state}`;
+}
+
+// ── Init ──
+npRenderGrid(npStartState,-1);
+npUpdateTermCmd();
+</script>
+</body>
+</html>

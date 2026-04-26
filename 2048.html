@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048 AI // KB</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+/* ── 2048 board ── */
+#g48 {
+  display: grid;
+  gap: 5px;
+  background: var(--bg2);
+  padding: 6px;
+  border: 1px solid var(--border);
+}
+.t48 {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--orb); font-weight: 800; font-size: 1.15rem;
+  background: var(--bg3); color: var(--dim); border-radius: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+
+
+.t48.v2    { background: rgba(0,245,255,.12); color: var(--cyan); }
+.t48.v4    { background: rgba(0,245,255,.22); color: var(--cyan); }
+.t48.v8    { background: rgba(0,255,136,.12); color: var(--green); }
+.t48.v16   { background: rgba(0,255,136,.22); color: var(--green); }
+.t48.v32   { background: rgba(255,230,0,.15); color: var(--yellow); }
+.t48.v64   { background: rgba(255,230,0,.28); color: var(--yellow); }
+.t48.v128  { background: rgba(255,0,160,.18); color: var(--pink);   font-size: .9rem; }
+.t48.v256  { background: rgba(255,0,160,.30); color: var(--pink);   font-size: .9rem; }
+.t48.v512  { background: rgba(155,0,255,.22); color: var(--purple); font-size: .9rem; }
+.t48.v1024 { background: rgba(155,0,255,.38); color: var(--purple); font-size: .78rem; }
+.t48.v2048 { background: linear-gradient(135deg,var(--cyan),var(--green)); color: var(--bg); font-size: .78rem; }
+.t48.vbig  { background: linear-gradient(135deg,var(--yellow),var(--pink)); color: var(--bg); font-size: .65rem;
+             box-shadow: 0 0 18px var(--yellow); }
+
+/* ── score row ── */
+.g48-score-row {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.7rem;
+}
+.g48-score-box {
+  flex: 1; min-width: 72px;
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 0.55rem 0.7rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+}
+.g48-score-label { font-family: var(--mono); font-size: 0.6rem; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; }
+.g48-score-val   { font-family: var(--orb); font-size: 1.2rem; font-weight: 800; color: var(--cyan); }
+.g48-score-val.pink { color: var(--pink); }
+
+/* ── controls bar ── */
+.g48-controls {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;
+  margin-top: 0.7rem;
+}
+
+/* ── speed slider row ── */
+.g48-speed-row {
+  margin-top: 0.7rem; max-width: 420px; width: 100%;
+}
+.g48-speed-row .row-lbl {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.3rem;
+}
+.g48-speed-row .row-lbl span { font-family: var(--mono); font-size: 0.68rem; color: var(--dim); }
+.g48-speed-row .row-lbl .val { color: var(--cyan); }
+
+/* ── settings toggle ── */
+.settings-toggle {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 1.1rem; cursor: pointer;
+  font-family: var(--mono); font-size: 0.7rem; color: var(--dim);
+  text-transform: uppercase; letter-spacing: .12em;
+  border: 1px solid rgba(0,245,255,.12);
+  padding: 0.45rem 1rem;
+  background: rgba(0,245,255,.03);
+  transition: color .2s, border-color .2s;
+  user-select: none;
+}
+.settings-toggle:hover { color: var(--cyan); border-color: rgba(0,245,255,.35); }
+.settings-toggle .arrow { transition: transform .25s; }
+.settings-toggle.open .arrow { transform: rotate(180deg); }
+
+.settings-panel {
+  display: none; margin-top: 0.6rem;
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 1.1rem 1.2rem;
+  display: none; flex-direction: column; gap: 1rem;
+}
+.settings-panel.open { display: flex; }
+
+.cfg-row { display: flex; flex-direction: column; gap: 0.3rem; }
+.cfg-lbl { font-family: var(--mono); font-size: 0.68rem; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; }
+.cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+/* ── agent log ── */
+.g48-log-wrap {
+  margin-top: 1.4rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.g48-log-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.g48-log {
+  font-family: var(--mono); font-size: 0.72rem; line-height: 1.6;
+  color: var(--text); background: var(--bg2); border: 1px solid var(--border);
+  padding: 0.7rem 0.9rem; height: 200px; overflow-y: auto;
+}
+.l-i { color: var(--dim); }
+.l-s { color: var(--green); }
+.l-w { color: var(--yellow); }
+.l-e { color: var(--red); }
+.l-m { color: var(--cyan); }
+
+/* ── two-col layout ── */
+.g48-layout {
+  display: flex; gap: 2rem; flex-wrap: wrap; padding: 1.5rem 2rem;
+  align-items: flex-start;
+}
+.g48-left  { display: flex; flex-direction: column; align-items: flex-start; }
+.g48-right { flex: 1; min-width: 240px; display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo"><a href="index.html">KB<span style="color:var(--dim);font-weight:400"> // AI.SYS</span></a></div>
+  <ul class="nav-links">
+    <li><a href="index.html">MAIN</a></li>
+    <li><a href="2048.html" class="act">2048</a></li>
+    <li><a href="npuzzle.html">N-PUZZLE</a></li>
+    <li><a href="sudoku.html">SUDOKU</a></li>
+  </ul>
+</nav>
+
+<div class="page act" id="page-2048">
+<div class="proj-page">
+
+  <!-- Header -->
+  <div class="proj-header">
+    <div class="proj-header-left">
+      <a class="back-btn" href="index.html">← MAIN</a>
+      <div class="proj-pg-tag">01 // AI ADVERSARIAL</div>
+      <div class="proj-pg-title neon-cyan">2048 AI AGENT</div>
+      <div class="proj-pg-sub">Expectiminimax · Alpha-Beta Pruning · Heuristic Evaluation</div>
+    </div>
+    <div class="proj-header-right">
+      <div class="stat-chips">
+        <span class="stat-chip">STEP <span class="val" id="stat-step">0</span></span>
+        <span class="stat-chip green">MAX <span class="val" id="stat-max">—</span></span>
+        <span class="stat-chip pink">STATUS <span class="val" id="stat-status">IDLE</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="g48-layout">
+
+    <!-- LEFT: board + controls -->
+    <div class="g48-left">
+
+      <!-- Score row -->
+      <div class="g48-score-row" style="width:100%">
+        <div class="g48-score-box">
+          <div class="g48-score-label">STEP</div>
+          <div class="g48-score-val" id="g48-step">0</div>
+        </div>
+        <div class="g48-score-box">
+          <div class="g48-score-label">MAX TILE</div>
+          <div class="g48-score-val" id="g48-max">—</div>
+        </div>
+        <div class="g48-score-box">
+          <div class="g48-score-label">SCORE</div>
+          <div class="g48-score-val pink" id="g48-score">0</div>
+        </div>
+        <div class="g48-score-box">
+          <div class="g48-score-label">LAST MOVE</div>
+          <div class="g48-score-val" id="g48-lastmove" style="font-size:0.95rem;padding-top:0.25rem">—</div>
+        </div>
+      </div>
+
+      <!-- Board -->
+      <div id="g48"></div>
+
+      <!-- Controls -->
+      <div class="g48-controls">
+        <button class="cyber-btn green"  id="btn-run"   onclick="g48Run()"><span class="btn-txt">▶ RUN</span></button>
+        <button class="cyber-btn pink"   id="btn-pause" onclick="g48Pause()" disabled><span class="btn-txt">⏸ PAUSE</span></button>
+        <button class="cyber-btn purple" onclick="g48Reset()"><span class="btn-txt">↺ RESET</span></button>
+      </div>
+
+      <!-- Speed -->
+      <div class="g48-speed-row">
+        <div class="row-lbl">
+          <span>SPEED</span>
+          <span class="val" id="speed-lbl">50ms / step</span>
+        </div>
+        <input type="range" class="cyber-slider" min="20" max="800" step="10" value="50"
+               oninput="g48SpeedChange(this.value)">
+        <div class="cyber-range-label"><span>FAST (20ms)</span><span>SLOW (800ms)</span></div>
+      </div>
+
+      <!-- Settings toggle -->
+      <div class="settings-toggle" id="settings-toggle" onclick="toggleSettings()">
+        <span>⚙ SETTINGS</span>
+        <span class="arrow">▼</span>
+      </div>
+
+      <!-- Settings panel (hidden by default) -->
+      <div class="settings-panel" id="settings-panel" style="width:100%;max-width:420px">
+        <div class="cfg-grid">
+
+          <div class="cfg-row">
+            <div class="cfg-lbl">BOARD SIZE</div>
+            <select class="cyber-select" id="cfg-size" style="width:100%">
+              <option value="4">4×4 (default)</option>
+              <option value="5">5×5</option>
+              <option value="6">6×6</option>
+            </select>
+          </div>
+
+          <div class="cfg-row">
+            <div class="cfg-lbl">SEARCH DEPTH</div>
+            <select class="cyber-select" id="cfg-depth" style="width:100%">
+              <option value="2">2 — fastest</option>
+              <option value="3" selected>3 — default</option>
+              <option value="4">4 — stronger</option>
+              <option value="5">5 — slow</option>
+            </select>
+          </div>
+
+          <div class="cfg-row">
+            <div class="cfg-lbl">P(tile = 2)</div>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <input type="range" class="cyber-slider" min="0" max="1" step="0.05" value="0.9"
+                     id="cfg-prob2" oninput="document.getElementById('prob2-lbl').textContent=parseFloat(this.value).toFixed(2)">
+              <span class="cfg-lbl" id="prob2-lbl" style="width:2.5rem;text-align:right;color:var(--cyan)">0.90</span>
+            </div>
+          </div>
+
+          <div class="cfg-row">
+            <div class="cfg-lbl">COMPUTER AI</div>
+            <label class="toggle-wrap" style="margin-top:0.3rem">
+              <label class="toggle">
+                <input type="checkbox" id="cfg-adversarial">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label">Adversarial</span>
+            </label>
+          </div>
+
+        </div>
+
+        <!-- Heuristic weights -->
+        <div>
+          <div class="cfg-lbl" style="margin-bottom:0.6rem;color:var(--cyan)">HEURISTIC WEIGHTS</div>
+          <div id="weight-inputs"></div>
+        </div>
+
+      </div>
+
+    </div><!-- /left -->
+
+    <!-- RIGHT: agent log -->
+    <div class="g48-right">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+        <div class="section-title" style="margin:0">AGENT LOG</div>
+        <div style="display:flex;align-items:center;gap:0.7rem">
+          <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">LOG EVERY</span>
+          <select class="cyber-select" id="log-freq" style="width:100px">
+            <option value="1">Every step</option>
+            <option value="5">Every 5</option>
+            <option value="10" selected>Every 10</option>
+            <option value="20">Every 20</option>
+            <option value="50">Every 50</option>
+          </select>
+          <button class="cyber-btn" style="padding:0.3rem 0.8rem;font-size:0.6rem" onclick="g48ClearLog()"><span class="btn-txt">CLEAR</span></button>
+        </div>
+      </div>
+      <div class="agent-log" id="g48-log" style="max-height:320px">
+        <span class="log-info">// Press RUN to start the agent</span>
+      </div>
+    </div>
+
+  </div><!-- /layout -->
+
+</div><!-- /proj-page -->
+</div><!-- /page -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  HEURISTIC WEIGHTS (mirrors IntelligentAgent.py defaults)
+// ═══════════════════════════════════════════════════════════════════
+const DEFAULT_WEIGHTS = {
+  empty: 2.70, corner: 1.50, monotone: 1.20,
+  merge: 0.60, max_tile: 0.30, smooth: 0.15
+};
+
+const WEIGHT_META = [
+  { key:'empty',    label:'Empty Cells',      color:'var(--cyan)',   max:5 },
+  { key:'corner',   label:'Corner Placement', color:'var(--green)',  max:5 },
+  { key:'monotone', label:'Monotonicity',     color:'var(--yellow)', max:5 },
+  { key:'merge',    label:'Merge Potential',  color:'var(--pink)',   max:3 },
+  { key:'max_tile', label:'Max Tile Value',   color:'var(--purple)', max:3 },
+  { key:'smooth',   label:'Smoothness',       color:'#ff8c00',       max:3 },
+];
+
+// Build weight slider UI
+(function buildWeightUI() {
+  const container = document.getElementById('weight-inputs');
+  WEIGHT_META.forEach(m => {
+    const def = DEFAULT_WEIGHTS[m.key];
+    container.innerHTML += `
+    <div class="heuristic-card" style="padding:0.6rem">
+      <div class="h-row">
+        <span class="h-name" style="font-size:0.78rem">${m.label}</span>
+        <span class="h-val" id="wval-${m.key}" style="color:${m.color}">${def.toFixed(2)}</span>
+      </div>
+      <input type="range" class="cyber-slider" min="0" max="${m.max}" step="0.05" value="${def}"
+             id="wslider-${m.key}" oninput="updateWeight('${m.key}', this.value)"
+             style="background:linear-gradient(90deg,${m.color},var(--purple))">
+      <div class="cyber-range-label"><span>0.00</span><span>${m.max.toFixed(2)}</span></div>
+    </div>`;
+  });
+})();
+
+function getWeights() {
+  const w = {};
+  WEIGHT_META.forEach(m => {
+    w[m.key] = parseFloat(document.getElementById('wslider-' + m.key).value);
+  });
+  return w;
+}
+
+function updateWeight(key, val) {
+  document.getElementById('wval-' + key).textContent = parseFloat(val).toFixed(2);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+let game    = null;     // { map, steps, score }
+let running = false;
+let timer   = null;
+let speed   = 50;       // ms per step
+
+// ═══════════════════════════════════════════════════════════════════
+//  SETTINGS TOGGLE
+// ═══════════════════════════════════════════════════════════════════
+function toggleSettings() {
+  const btn   = document.getElementById('settings-toggle');
+  const panel = document.getElementById('settings-panel');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BOARD HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function getN() { return parseInt(document.getElementById('cfg-size').value); }
+
+function cloneMap(m) { return m.map(r => [...r]); }
+
+function getEmpty(m) {
+  const cells = [];
+  m.forEach((row, r) => row.forEach((v, c) => { if (!v) cells.push([r, c]); }));
+  return cells;
+}
+
+function addTile(m) {
+  const cells = getEmpty(m);
+  if (!cells.length) return;
+  const [r, c] = cells[Math.floor(Math.random() * cells.length)];
+  const prob2 = parseFloat(document.getElementById('cfg-prob2').value);
+  m[r][c] = Math.random() < prob2 ? 2 : 4;
+}
+
+function maxTile(m) { return Math.max(...m.flat()); }
+
+function canMove(m) {
+  const N = m.length;
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++) {
+      if (!m[r][c]) return true;
+      if (c < N-1 && m[r][c] === m[r][c+1]) return true;
+      if (r < N-1 && m[r][c] === m[r+1][c]) return true;
+    }
+  return false;
+}
+
+function applyMove(map, dir) {
+  const N = map.length;
+  const m = cloneMap(map);
+  let moved = false;
+  let scoreDelta = 0;
+
+  const mergeRow = arr => {
+    const v = arr.filter(x => x);
+    for (let i = 0; i < v.length - 1; i++) {
+      if (v[i] === v[i+1]) { v[i] *= 2; scoreDelta += v[i]; v.splice(i+1, 1); }
+    }
+    while (v.length < N) v.push(0);
+    return v;
+  };
+
+  if (dir === 0) { // UP
+    for (let c = 0; c < N; c++) {
+      const col = mergeRow(m.map(row => row[c]));
+      for (let r = 0; r < N; r++) { if (m[r][c] !== col[r]) moved = true; m[r][c] = col[r]; }
+    }
+  } else if (dir === 1) { // DOWN
+    for (let c = 0; c < N; c++) {
+      const col = mergeRow(m.map(row => row[c]).reverse());
+      for (let r = 0; r < N; r++) { if (m[N-1-r][c] !== col[r]) moved = true; m[N-1-r][c] = col[r]; }
+    }
+  } else if (dir === 2) { // LEFT
+    for (let r = 0; r < N; r++) {
+      const row = mergeRow([...m[r]]);
+      for (let c = 0; c < N; c++) { if (m[r][c] !== row[c]) moved = true; m[r][c] = row[c]; }
+    }
+  } else { // RIGHT
+    for (let r = 0; r < N; r++) {
+      const row = mergeRow([...m[r]].reverse()).reverse();
+      for (let c = 0; c < N; c++) { if (m[r][c] !== row[c]) moved = true; m[r][c] = row[c]; }
+    }
+  }
+  return { map: m, moved, scoreDelta };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HEURISTIC FUNCTIONS (JS port of IntelligentAgent.py)
+// ═══════════════════════════════════════════════════════════════════
+function scoreEmpty(m) {
+  const e = m.flat().filter(v => v === 0).length;
+  return Math.log2(e + 1);
+}
+
+function scoreMonotonicity(m) {
+  const N = m.length;
+  let ra = 0, rd = 0, ca = 0, cd = 0;
+  for (let i = 0; i < N; i++) {
+    const rv = m[i].filter(v => v);
+    for (let j = 0; j < rv.length - 1; j++) {
+      const la = Math.log2(rv[j]), lb = Math.log2(rv[j+1]);
+      if (la > lb) ra -= (la - lb); else if (la < lb) rd -= (lb - la);
+    }
+  }
+  for (let j = 0; j < N; j++) {
+    const cv = m.map(r => r[j]).filter(v => v);
+    for (let i = 0; i < cv.length - 1; i++) {
+      const la = Math.log2(cv[i]), lb = Math.log2(cv[i+1]);
+      if (la > lb) ca -= (la - lb); else if (la < lb) cd -= (lb - la);
+    }
+  }
+  return Math.max(ra, rd) + Math.max(ca, cd);
+}
+
+function scoreSmoothness(m) {
+  const N = m.length;
+  let p = 0;
+  for (let i = 0; i < N; i++) {
+    const rv = m[i].filter(v => v);
+    for (let j = 0; j < rv.length - 1; j++) p -= Math.abs(Math.log2(rv[j]) - Math.log2(rv[j+1]));
+  }
+  for (let j = 0; j < N; j++) {
+    const cv = m.map(r => r[j]).filter(v => v);
+    for (let i = 0; i < cv.length - 1; i++) p -= Math.abs(Math.log2(cv[i]) - Math.log2(cv[i+1]));
+  }
+  return p;
+}
+
+function scoreCorner(m) {
+  const N = m.length, peak = maxTile(m);
+  if (!peak) return 0;
+  const corners = [m[0][0], m[0][N-1], m[N-1][0], m[N-1][N-1]];
+  return corners.includes(peak) ? Math.log2(peak) : 0;
+}
+
+function scoreMerge(m) {
+  const N = m.length; let c = 0;
+  for (let i = 0; i < N; i++)
+    for (let j = 0; j < N-1; j++) { const v = m[i][j]; if (v && v === m[i][j+1]) c++; }
+  for (let j = 0; j < N; j++)
+    for (let i = 0; i < N-1; i++) { const v = m[i][j]; if (v && v === m[i+1][j]) c++; }
+  return c;
+}
+
+function scoreMaxTile(m) { const p = maxTile(m); return p ? Math.log2(p) : 0; }
+
+function evalBoard(m) {
+  const w = getWeights();
+  return w.empty    * scoreEmpty(m)
+       + w.monotone * scoreMonotonicity(m)
+       + w.smooth   * scoreSmoothness(m)
+       + w.corner   * scoreCorner(m)
+       + w.merge    * scoreMerge(m)
+       + w.max_tile * scoreMaxTile(m);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  EXPECTIMINIMAX
+// ═══════════════════════════════════════════════════════════════════
+function expecti(m, depth, isMax) {
+  if (!depth || !canMove(m)) return evalBoard(m);
+  if (isMax) {
+    let best = -Infinity;
+    for (let d = 0; d < 4; d++) {
+      const { map: nm, moved } = applyMove(m, d);
+      if (!moved) continue;
+      best = Math.max(best, expecti(nm, depth - 1, false));
+    }
+    return best === -Infinity ? evalBoard(m) : best;
+  } else {
+    const adversarial = document.getElementById('cfg-adversarial').checked;
+    const prob2 = parseFloat(document.getElementById('cfg-prob2').value);
+    const cells = getEmpty(m);
+    if (!cells.length) return evalBoard(m);
+
+    if (adversarial) {
+      let worst = Infinity;
+      for (const [r, c] of cells)
+        for (const v of [2, 4]) {
+          const nm = cloneMap(m); nm[r][c] = v;
+          worst = Math.min(worst, expecti(nm, depth - 1, true));
+        }
+      return worst;
+    }
+
+    let total = 0;
+    for (const [r, c] of cells)
+      for (const [v, p] of [[2, prob2], [4, 1 - prob2]]) {
+        const nm = cloneMap(m); nm[r][c] = v;
+        total += (p / cells.length) * expecti(nm, depth - 1, true);
+      }
+    return total;
+  }
+}
+
+function bestMove(m) {
+  const depth = parseInt(document.getElementById('cfg-depth').value);
+  let best = -Infinity, bestDir = 0;
+  for (let d = 0; d < 4; d++) {
+    const { map: nm, moved } = applyMove(m, d);
+    if (!moved) continue;
+    const sc = expecti(nm, depth - 1, false);
+    if (sc > best) { best = sc; bestDir = d; }
+  }
+  return bestDir;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════════
+function renderBoard() {
+  const N = game.map.length;
+  const el = document.getElementById('g48');
+  const size = N <= 4 ? 72 : N <= 5 ? 58 : 46;
+  el.style.gridTemplateColumns = `repeat(${N}, ${size}px)`;
+  el.style.gridTemplateRows    = `repeat(${N}, ${size}px)`;
+  el.innerHTML = '';
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++) {
+      const v = game.map[r][c];
+      const d = document.createElement('div');
+      d.className = 't48' + (v ? (v > 2048 ? ' vbig' : ` v${v}`) : '');
+      d.style.width = d.style.height = size + 'px';
+      d.textContent = v || '';
+      el.appendChild(d);
+    }
+}
+
+function updateStats(lastMove) {
+  const mt = maxTile(game.map);
+  document.getElementById('g48-step').textContent     = game.steps;
+  document.getElementById('g48-max').textContent      = mt || '—';
+  document.getElementById('g48-score').textContent    = game.score;
+  document.getElementById('g48-lastmove').textContent = lastMove || '—';
+  document.getElementById('stat-step').textContent    = game.steps;
+  document.getElementById('stat-max').textContent     = mt || '—';
+  document.getElementById('stat-status').textContent  = running ? 'RUNNING' : (canMove(game.map) ? 'PAUSED' : 'DONE');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  AGENT LOG (v1-style: frequency filter, colored step entries)
+// ═══════════════════════════════════════════════════════════════════
+function logStep(step, dirName, mt) {
+  const freq = parseInt(document.getElementById('log-freq').value);
+  if (step % freq !== 0) return;
+
+  const log = document.getElementById('g48-log');
+  const line = document.createElement('div');
+  const isGood = mt >= 1024;
+  line.innerHTML =
+    `<span class="log-move">[Step ${String(step).padStart(4, ' ')}]</span> ` +
+    `<span class="log-val">PLAYER</span> ` +
+    `<span class="log-info">→ ${dirName}</span>` +
+    `<span class="log-best">  MAX:${mt}</span>`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function logMsg(msg, cls = 'log-info') {
+  const log = document.getElementById('g48-log');
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="${cls}">${msg}</span>`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function g48ClearLog() {
+  document.getElementById('g48-log').innerHTML = '<span class="log-info">// Log cleared</span>';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════════════════════════
+const DIRS = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+
+function doStep() {
+  if (!running) return;
+  if (!canMove(game.map)) {
+    running = false;
+    document.getElementById('stat-status').textContent = 'DONE';
+    document.getElementById('btn-pause').disabled = true;
+    document.getElementById('btn-run').disabled   = false;
+    logMsg(`// Game over.  Max tile: ${maxTile(game.map)}  Score: ${game.score}`, 'log-best');
+    return;
+  }
+
+  const dir = bestMove(game.map);
+  const { map: nm, moved, scoreDelta } = applyMove(game.map, dir);
+  if (!moved) { running = false; return; }
+
+  game.map = nm;
+  game.score += scoreDelta;
+  game.steps++;
+  addTile(game.map);
+
+  renderBoard();
+  updateStats(DIRS[dir]);
+  logStep(game.steps, DIRS[dir], maxTile(game.map));
+
+  timer = setTimeout(doStep, speed);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  UI CONTROLS
+// ═══════════════════════════════════════════════════════════════════
+function g48Run() {
+  if (running) return;
+  if (!game) g48Init();
+  running = true;
+  document.getElementById('btn-run').disabled   = true;
+  document.getElementById('btn-pause').disabled = false;
+  document.getElementById('stat-status').textContent = 'RUNNING';
+  logMsg('// Agent started.', 'log-info');
+  doStep();
+}
+
+function g48Pause() {
+  running = false;
+  clearTimeout(timer);
+  document.getElementById('btn-run').disabled   = false;
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('stat-status').textContent = 'PAUSED';
+  logMsg('// Paused.', 'log-info');
+}
+
+function g48Reset() {
+  running = false;
+  clearTimeout(timer);
+  g48Init();
+  document.getElementById('btn-run').disabled   = false;
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('g48-log').innerHTML  = '<span class="log-info">// Board reset — configure and click RUN</span>';
+}
+
+function g48Init() {
+  const N = getN();
+  game = { map: Array.from({length: N}, () => Array(N).fill(0)), steps: 0, score: 0 };
+  addTile(game.map); addTile(game.map);
+  renderBoard();
+  updateStats(null);
+}
+
+function g48SpeedChange(v) {
+  speed = parseInt(v);
+  document.getElementById('speed-lbl').textContent = v + 'ms / step';
+}
+
+// ── init on load ──
+g48Init();
+</script>
+</body>
+</html>
