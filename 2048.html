@@ -19,8 +19,21 @@
   display: flex; align-items: center; justify-content: center;
   font-family: var(--orb); font-weight: 800; font-size: 1.15rem;
   background: var(--bg3); color: var(--dim); border-radius: 2px;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, font-size 0.18s ease;
 }
+@keyframes tileMerge {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  70%  { transform: scale(0.93); }
+  100% { transform: scale(1); }
+}
+@keyframes tileNew {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.t48.merge { animation: tileMerge 0.2s ease; }
+.t48.new   { animation: tileNew  0.18s ease; }
 
 
 .t48.v2    { background: rgba(0,245,255,.12); color: var(--cyan); }
@@ -133,6 +146,7 @@
     <li><a href="2048.html" class="act">2048</a></li>
     <li><a href="npuzzle.html">N-PUZZLE</a></li>
     <li><a href="sudoku.html">SUDOKU</a></li>
+    <li><a href="ml.html">ML</a></li>
   </ul>
 </nav>
 
@@ -554,22 +568,53 @@ function bestMove(m) {
 // ═══════════════════════════════════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════════════════════════════════
+let _boardN = 0;
+let _prevMap = null;
+
 function renderBoard() {
   const N = game.map.length;
   const el = document.getElementById('g48');
   const size = N <= 4 ? 72 : N <= 5 ? 58 : 46;
-  el.style.gridTemplateColumns = `repeat(${N}, ${size}px)`;
-  el.style.gridTemplateRows    = `repeat(${N}, ${size}px)`;
-  el.innerHTML = '';
-  for (let r = 0; r < N; r++)
-    for (let c = 0; c < N; c++) {
-      const v = game.map[r][c];
+
+  // Rebuild grid only when board size changes
+  if (N !== _boardN) {
+    el.style.gridTemplateColumns = `repeat(${N}, ${size}px)`;
+    el.style.gridTemplateRows    = `repeat(${N}, ${size}px)`;
+    el.innerHTML = '';
+    for (let i = 0; i < N * N; i++) {
       const d = document.createElement('div');
-      d.className = 't48' + (v ? (v > 2048 ? ' vbig' : ` v${v}`) : '');
+      d.className = 't48';
       d.style.width = d.style.height = size + 'px';
-      d.textContent = v || '';
       el.appendChild(d);
     }
+    _boardN = N;
+    _prevMap = null;
+  }
+
+  const cells = el.children;
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const v    = game.map[r][c];
+      const prev = _prevMap ? _prevMap[r][c] : -1;
+      const d    = cells[r * N + c];
+      const cls  = 't48' + (v ? (v > 2048 ? ' vbig' : ` v${v}`) : '');
+
+      // Detect merge (value doubled) or new tile (was 0)
+      const isMerge = v && prev && v > prev;
+      const isNew   = v && !prev;
+
+      if (d.className !== cls) d.className = cls;
+      d.textContent = v || '';
+
+      if (isMerge || isNew) {
+        d.classList.remove('merge', 'new');
+        // Force reflow so animation restarts
+        void d.offsetWidth;
+        d.classList.add(isMerge ? 'merge' : 'new');
+      }
+    }
+  }
+  _prevMap = game.map.map(row => [...row]);
 }
 
 function updateStats(lastMove) {

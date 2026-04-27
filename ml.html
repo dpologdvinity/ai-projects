@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML CLASSIFIERS // KB</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.ml-body { display: grid; grid-template-columns: 1fr 380px; min-height: calc(100vh - 160px); }
+.ml-left  { padding: 1.5rem 2rem; border-right: 1px solid var(--border); overflow-y: auto; }
+.ml-right { padding: 1.25rem; background: var(--bg2); overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
+@media(max-width:1000px) { .ml-body { grid-template-columns: 1fr; } .ml-left { border-right: none; } }
+
+/* loader overlay */
+.py-loader {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1rem; padding: 2.5rem;
+  background: rgba(1,2,8,0.92);
+  border: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+.py-loader.hidden { display: none; }
+.loader-title { font-family: var(--orb); font-size: 0.78rem; color: var(--cyan); letter-spacing: 0.15em; }
+.loader-sub   { font-family: var(--mono); font-size: 0.68rem; color: var(--dim); text-align: center; }
+.loader-bar-wrap { width: 100%; max-width: 340px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.loader-bar { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); border-radius: 2px;
+              width: 0%; transition: width 0.5s ease; box-shadow: 0 0 8px var(--cyan); }
+@keyframes indeterminate { 0%{left:-40%} 100%{left:110%} }
+.loader-bar.indeterminate {
+  position: relative; width: 40% !important;
+  animation: indeterminate 1.2s ease-in-out infinite;
+}
+
+/* data input */
+.data-textarea {
+  width: 100%; min-height: 150px;
+  background: #010308; border: 1px solid var(--border);
+  color: var(--text); font-family: var(--mono); font-size: 0.74rem;
+  line-height: 1.6; padding: 0.75rem; resize: vertical; outline: none;
+  transition: border-color 0.2s;
+}
+.data-textarea:focus { border-color: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.15); }
+.data-textarea::placeholder { color: var(--dim); }
+.btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.hint { font-family: var(--mono); font-size: 0.65rem; color: var(--dim); margin-top: 0.35rem; min-height: 1rem; }
+
+/* progress */
+.ml-progress { display: none; align-items: center; gap: 0.75rem;
+  font-family: var(--mono); font-size: 0.7rem; color: var(--green); padding: 0.65rem 0; }
+.ml-progress.show { display: flex; }
+.prog-wrap { flex:1; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+.prog-fill { height:100%; background:linear-gradient(90deg,var(--green),var(--cyan));
+             border-radius:2px; width:0%; transition:width 0.35s ease; box-shadow:0 0 8px var(--green); }
+
+/* error */
+.ml-error { display:none; background:rgba(255,59,59,0.08); border:1px solid rgba(255,59,59,0.35);
+  color:var(--red); font-family:var(--mono); font-size:0.72rem; padding:0.6rem 0.85rem; margin-top:0.5rem; }
+.ml-error.show { display: block; }
+
+/* results table */
+.ml-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.76rem; }
+.ml-table th { font-family:var(--orb); font-size:0.58rem; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--dim); border-bottom:1px solid var(--border); padding:.45rem .65rem; text-align:left; }
+.ml-table td { padding:.45rem .65rem; border-bottom:1px solid rgba(0,245,255,0.05); }
+.ml-table tr:hover td { background:rgba(0,245,255,0.03); }
+.sbar-wrap { display:flex; align-items:center; gap:.4rem; }
+.sbar { height:3px; border-radius:2px; flex-shrink:0; }
+
+/* plot grid */
+.plot-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; margin-top:1.25rem; }
+.plot-card { border:1px solid var(--border); background:var(--bg2); overflow:hidden;
+  transition: box-shadow 0.2s; }
+.plot-card:hover { box-shadow: 0 0 20px rgba(0,245,255,0.12); }
+.plot-card img { width:100%; display:block; }
+.plot-lbl { font-family:var(--orb); font-size:0.58rem; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--dim); padding:.4rem .65rem; border-top:1px solid var(--border); background:rgba(0,0,0,0.2); }
+
+/* right panel algo cards */
+.algo-card { background:rgba(0,245,255,0.03); border:1px solid var(--border); padding:.85rem; position:relative; overflow:hidden; }
+.algo-card::before { content:''; position:absolute; top:0;left:0;right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent); opacity:.5; }
+.algo-card.pk::before { background:linear-gradient(90deg,transparent,var(--pink),transparent); }
+.algo-card.gr::before { background:linear-gradient(90deg,transparent,var(--green),transparent); }
+.algo-card.pu::before { background:linear-gradient(90deg,transparent,var(--purple),transparent); }
+.algo-card.ye::before { background:linear-gradient(90deg,transparent,var(--yellow),transparent); }
+.algo-name { font-family:var(--orb); font-size:.65rem; font-weight:700; letter-spacing:.1em; margin-bottom:.3rem; color:var(--cyan); }
+.algo-card.pk .algo-name { color:var(--pink); }
+.algo-card.gr .algo-name { color:var(--green); }
+.algo-card.pu .algo-name { color:var(--purple); }
+.algo-card.ye .algo-name { color:var(--yellow); }
+.algo-desc { font-family:var(--raj); font-size:.78rem; color:var(--dim); line-height:1.5; }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo"><a href="index.html">KB<span style="color:var(--dim);font-weight:400"> // AI</span></a></div>
+  <ul class="nav-links">
+    <li><a href="index.html">MAIN</a></li>
+    <li><a href="2048.html">2048</a></li>
+    <li><a href="npuzzle.html">N-PUZZLE</a></li>
+    <li><a href="sudoku.html">SUDOKU</a></li>
+    <li><a href="ml.html" class="act">ML</a></li>
+  </ul>
+</nav>
+
+<div class="page act" id="page-ml">
+<div class="proj-page">
+
+  <div class="proj-header">
+    <div class="proj-header-left">
+      <a class="back-btn" href="index.html">← MAIN</a>
+      <div class="proj-pg-tag">04 // MACHINE LEARNING</div>
+      <div class="proj-pg-title neon-green">ML CLASSIFIERS</div>
+      <div class="proj-pg-sub">KNN · Logistic Regression · Decision Tree · Random Forest · AdaBoost</div>
+    </div>
+    <div class="proj-header-right">
+      <div class="stat-chips">
+        <span class="stat-chip green">CLASSIFIERS <span class="val" style="color:var(--green)">5</span></span>
+        <span class="stat-chip">CV FOLDS <span class="val">5</span></span>
+        <span class="stat-chip">SPLIT <span class="val">60 / 40</span></span>
+        <span class="stat-chip" id="py-status-chip">PYTHON <span class="val" id="py-status">LOADING</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ml-body">
+
+    <!-- LEFT -->
+    <div class="ml-left">
+
+      <!-- Pyodide loader -->
+      <div class="py-loader" id="py-loader">
+        <div class="loader-title">INITIALIZING PYTHON ENVIRONMENT</div>
+        <div class="loader-bar-wrap">
+          <div class="loader-bar indeterminate" id="loader-bar"></div>
+        </div>
+        <div class="loader-sub" id="loader-sub">
+          Downloading Pyodide runtime + scikit-learn + matplotlib…<br>
+          This takes ~20–40 seconds on first load (cached after that).
+        </div>
+      </div>
+
+      <!-- Data input (hidden until ready) -->
+      <div id="input-section" style="display:none;">
+        <div class="section-title green-ttl">DATA INPUT</div>
+        <div style="font-family:var(--raj);font-size:.82rem;color:var(--dim);margin-bottom:.75rem;">
+          CSV with columns <code style="color:var(--green)">A</code>,
+          <code style="color:var(--green)">B</code>,
+          <code style="color:var(--green)">label</code> (label = 0 or 1).
+          Paste, upload a file, or load the built-in example.
+        </div>
+
+        <textarea class="data-textarea" id="csv-input"
+          placeholder="A,B,label&#10;1.23,2.45,0&#10;3.10,0.87,1&#10;…"></textarea>
+
+        <div class="btn-row">
+          <button class="cyber-btn green" onclick="loadExample()"><span class="btn-txt">⬇ LOAD EXAMPLE</span></button>
+          <label class="cyber-btn" style="cursor:pointer">
+            <span class="btn-txt">📂 UPLOAD CSV</span>
+            <input type="file" accept=".csv" id="file-input" style="display:none" onchange="handleFile(event)">
+          </label>
+          <button class="cyber-btn pink" onclick="clearAll()"><span class="btn-txt">✕ CLEAR</span></button>
+          <button class="cyber-btn" id="btn-run" onclick="runML()"><span class="btn-txt">▶ RUN</span></button>
+        </div>
+        <div class="hint" id="hint"></div>
+        <div class="ml-error" id="ml-error"></div>
+
+        <div class="ml-progress" id="ml-progress">
+          <span id="prog-label">Running…</span>
+          <div class="prog-wrap"><div class="prog-fill" id="prog-fill"></div></div>
+        </div>
+
+        <!-- Results -->
+        <div id="ml-results" style="display:none; margin-top:1.5rem;">
+          <div class="section-title green-ttl">RESULTS</div>
+          <div class="cyber-panel">
+            <div class="panel-hdr" style="background:rgba(0,255,136,0.05);border-bottom:1px solid rgba(0,255,136,0.2);">
+              <div class="dots"><span class="dot dr"></span><span class="dot dy"></span><span class="dot dg"></span></div>
+              <div class="ttl" style="color:var(--green)">CLASSIFIER PERFORMANCE</div>
+            </div>
+            <table class="ml-table">
+              <thead><tr><th>METHOD</th><th>BEST CV SCORE</th><th>TEST SCORE</th></tr></thead>
+              <tbody id="results-tbody"></tbody>
+            </table>
+          </div>
+          <div class="section-title green-ttl" style="margin-top:1.5rem;">PLOTS</div>
+          <div class="plot-grid" id="plot-grid"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: info -->
+    <div class="ml-right">
+      <div class="section-title green-ttl">CLASSIFIERS</div>
+      <div class="algo-card">
+        <div class="algo-name">K-NEAREST NEIGHBORS</div>
+        <div class="algo-desc">k ∈ {1,3,…,19}, leaf_size ∈ {5,10,…,30}. Adapts to non-linear geometry — best on chessboard data.</div>
+      </div>
+      <div class="algo-card pk">
+        <div class="algo-name">LOGISTIC REGRESSION</div>
+        <div class="algo-desc">C ∈ {0.1,…,100}. Linear boundary only — fails structurally on non-linear data.</div>
+      </div>
+      <div class="algo-card pu">
+        <div class="algo-name">DECISION TREE</div>
+        <div class="algo-desc">max_depth ∈ [1,50], min_samples_split ∈ [2,10]. Axis-aligned rectangular splits.</div>
+      </div>
+      <div class="algo-card ye">
+        <div class="algo-name">RANDOM FOREST</div>
+        <div class="algo-desc">max_depth ∈ {1–5}, min_samples_split ∈ [2,10]. Bagged ensemble — reduces variance.</div>
+      </div>
+      <div class="algo-card gr">
+        <div class="algo-name">ADABOOST</div>
+        <div class="algo-desc">n_estimators ∈ {10,20,…,70}. Boosting — each learner corrects the previous one's errors.</div>
+      </div>
+
+      <div class="section-title green-ttl" style="margin-top:.5rem;">NOTE</div>
+      <div style="font-family:var(--raj);font-size:.8rem;color:var(--dim);line-height:1.7;">
+        Python runs entirely in your browser via <span style="color:var(--cyan)">Pyodide</span> (WebAssembly).
+        No server or installation required.<br><br>
+        First load downloads ~50MB of packages and is cached by your browser afterward.
+        Classifiers with large grids (Decision Tree, KNN) may take <span style="color:var(--yellow)">1–3 minutes</span> to finish.
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Pyodide from CDN -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<script>
+// ── Example CSV (mirrors input.csv structure) ─────────────────────────
+// Embedded so the page works standalone without a server
+const EXAMPLE_CSV = `A,B,label
+0.22,2.07,1
+0.35,0.60,0
+0.61,3.45,1
+0.74,1.22,0
+0.88,2.81,1
+1.02,0.15,0
+1.15,1.87,1
+1.29,3.12,0
+1.43,0.54,1
+1.56,2.33,0
+1.70,1.01,1
+1.83,3.67,0
+1.97,0.30,1
+2.10,2.58,0
+2.24,1.45,1
+2.37,3.89,0
+2.51,0.72,1
+2.65,2.14,0
+2.78,1.30,1
+2.92,3.55,0
+3.05,0.18,1
+3.19,2.76,0
+3.32,1.62,1
+3.46,3.30,0
+3.60,0.45,1
+0.18,1.55,0
+0.45,3.20,0
+0.72,0.88,1
+0.99,2.44,1
+1.26,1.10,0
+1.53,3.78,1
+1.80,0.33,0
+2.07,2.99,1
+2.34,1.66,0
+2.61,3.44,1
+2.88,0.11,0
+3.15,2.67,1
+3.42,1.33,0
+3.69,3.11,1
+3.96,0.78,0
+0.30,1.99,1
+0.57,3.66,0
+0.84,0.22,1
+1.11,2.55,0
+1.38,1.21,1
+1.65,3.88,0
+1.92,0.44,1
+2.19,2.10,0
+2.46,1.77,1
+2.73,3.33,0
+3.00,0.66,1
+3.27,2.88,0
+3.54,1.44,1
+3.81,3.00,0
+0.12,0.55,0
+0.39,2.22,1
+0.66,0.99,0
+0.93,3.66,1
+1.20,1.33,0
+1.47,3.00,1
+1.74,0.77,0
+2.01,2.44,1
+2.28,1.11,0
+2.55,3.77,1
+2.82,0.44,0
+3.09,2.11,1
+3.36,0.88,0
+3.63,3.55,1
+3.90,1.22,0
+0.25,2.88,0
+0.52,0.33,1
+0.79,3.11,0
+1.06,1.78,1
+1.33,0.11,0
+1.60,2.67,1
+1.87,1.55,0
+2.14,3.22,1
+2.41,0.99,0
+2.68,2.55,1
+2.95,1.44,0
+3.22,3.88,1
+3.49,0.22,0
+3.76,2.33,1
+4.03,1.00,0
+0.08,1.44,1
+0.36,3.77,0
+0.63,0.66,1
+0.90,2.33,0
+1.17,1.00,1
+1.44,3.44,0
+1.71,0.11,1
+1.98,2.77,0
+2.25,1.55,1
+2.52,3.22,0
+2.79,0.88,1
+3.06,2.44,0
+3.33,1.22,1
+3.60,3.66,0
+3.87,0.55,1`;
+
+// ── Python code (runs in Pyodide) ─────────────────────────────────────
+const PY_CODE = `
+import io, base64, json
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.model_selection import train_test_split, GridSearchCV
+
+BG='#020610'; BG2='#050d1a'; EDGE='#0d2035'; DIM='#4a7a9b'; TEXT='#c0e8ff'
+CYAN='#00f5ff'; PINK='#ff00a0'; GREEN='#00ff88'; PURP='#9b00ff'; YEL='#ffe600'
+
+def style(ax, title, color):
+    ax.set_facecolor(BG)
+    ax.set_title(title, color=color, fontsize=10, fontweight='bold', pad=8)
+    ax.tick_params(colors=DIM, labelsize=7)
+    for s in ax.spines.values(): s.set_color(EDGE)
+
+def to_b64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor=BG, edgecolor='none')
+    buf.seek(0)
+    data = base64.b64encode(buf.read()).decode()
+    plt.close(fig)
+    return data
+
+def scatter_plot(X, y):
+    fig, ax = plt.subplots(figsize=(5,4), facecolor=BG)
+    ax.scatter(X[y==0,0],X[y==0,1],marker='o',s=22,alpha=0.75,color=CYAN, label='Class 0')
+    ax.scatter(X[y==1,0],X[y==1,1],marker='s',s=22,alpha=0.75,color=PINK,label='Class 1')
+    style(ax,'Dataset',CYAN)
+    ax.legend(facecolor=BG2,edgecolor=EDGE,labelcolor=TEXT,fontsize=8)
+    return to_b64(fig)
+
+def boundary_plot(X, Y, model, title, color):
+    x1,x2=X[:,0],X[:,1]; m=0.5
+    xx,yy=np.meshgrid(np.linspace(x1.min()-m,x1.max()+m,220),
+                      np.linspace(x2.min()-m,x2.max()+m,220))
+    Z=model.predict(np.c_[xx.ravel(),yy.ravel()]).reshape(xx.shape)
+    fig,ax=plt.subplots(figsize=(5,4),facecolor=BG)
+    ax.contourf(xx,yy,Z,cmap=plt.cm.coolwarm,alpha=0.75,zorder=1)
+    ax.scatter(x1,x2,c=Y,s=22,cmap=plt.cm.coolwarm,edgecolors='k',linewidths=0.3,zorder=2)
+    style(ax,title,color)
+    return to_b64(fig)
+
+def run(csv_text):
+    df = pd.read_csv(io.StringIO(csv_text))
+    missing = {'A','B','label'} - set(df.columns)
+    if missing:
+        return json.dumps({'error': f"CSV missing columns: {', '.join(missing)}"})
+    X = df[['A','B']].values
+    y = df['label'].values
+    Xtr,Xte,ytr,yte = train_test_split(X,y,test_size=0.4,random_state=42)
+
+    plots={'scatter': scatter_plot(X,y)}
+    results=[]
+
+    CLFS=[
+        ('KNN',                 CYAN, KNeighborsClassifier(),
+         {'n_neighbors':np.arange(1,20,2),'leaf_size':np.arange(5,35,5)}),
+        ('Logistic Regression', PINK, LogisticRegression(max_iter=2000),
+         {'C':[0.1,0.5,1,5,10,50,100]}),
+        ('Decision Tree',       PURP, DecisionTreeClassifier(random_state=42),
+         {'max_depth':np.arange(1,51),'min_samples_split':np.arange(2,11)}),
+        ('Random Forest',       YEL,  RandomForestClassifier(random_state=42),
+         {'max_depth':[1,2,3,4,5],'min_samples_split':np.arange(2,11)}),
+        ('AdaBoost',            GREEN,AdaBoostClassifier(random_state=42),
+         {'n_estimators':np.arange(10,80,10)}),
+    ]
+
+    for name,color,est,params in CLFS:
+        clf=GridSearchCV(est,params,cv=5)
+        clf.fit(Xtr,ytr)
+        results.append({'name':name,'cv_score':round(float(clf.best_score_),4),
+                        'test_score':round(float(clf.score(Xte,yte)),4)})
+        plots[name]=boundary_plot(Xte,clf.predict(Xte),clf,name,color)
+
+    return json.dumps({'results':results,'plots':plots})
+`;
+
+// ── Globals ───────────────────────────────────────────────────────────
+let pyodide = null;
+
+// ── Boot Pyodide ──────────────────────────────────────────────────────
+async function bootPyodide() {
+  const sub = document.getElementById('loader-sub');
+  const bar = document.getElementById('loader-bar');
+  const chip = document.getElementById('py-status');
+
+  try {
+    sub.textContent = 'Loading Pyodide runtime…';
+    pyodide = await loadPyodide();
+
+    sub.textContent = 'Installing packages: numpy, pandas, matplotlib, scikit-learn…';
+    bar.classList.remove('indeterminate');
+    bar.style.width = '20%';
+    await pyodide.loadPackage(['numpy', 'pandas', 'matplotlib', 'scikit-learn']);
+
+    bar.style.width = '90%';
+    sub.textContent = 'Compiling Python environment…';
+    await pyodide.runPythonAsync(PY_CODE);
+
+    bar.style.width = '100%';
+    setTimeout(() => {
+      document.getElementById('py-loader').classList.add('hidden');
+      document.getElementById('input-section').style.display = 'block';
+      chip.textContent = 'READY';
+      chip.style.color = 'var(--green)';
+    }, 400);
+
+  } catch(e) {
+    sub.innerHTML = `<span style="color:var(--red)">Failed to load Python: ${e.message}</span>`;
+    chip.textContent = 'ERROR';
+    chip.style.color = 'var(--red)';
+  }
+}
+
+// ── Load example ──────────────────────────────────────────────────────
+function loadExample() {
+  document.getElementById('csv-input').value = EXAMPLE_CSV;
+  const rows = EXAMPLE_CSV.trim().split('\n').length - 1;
+  setHint(`Loaded ${rows} example rows`);
+  setError('');
+}
+
+// ── File upload ───────────────────────────────────────────────────────
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('csv-input').value = ev.target.result;
+    const rows = ev.target.result.trim().split('\n').length - 1;
+    setHint(`Loaded ${rows} rows from ${file.name}`);
+    setError('');
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function clearAll() {
+  document.getElementById('csv-input').value = '';
+  setHint(''); setError('');
+  document.getElementById('ml-results').style.display = 'none';
+}
+
+// ── Run ───────────────────────────────────────────────────────────────
+async function runML() {
+  const csv = document.getElementById('csv-input').value.trim();
+  if (!csv) { setError('Paste or load CSV data first.'); return; }
+
+  setError('');
+  document.getElementById('ml-results').style.display = 'none';
+  document.getElementById('btn-run').disabled = true;
+  showProg(true);
+
+  // Animate progress label while Python runs (blocking)
+  const stages = [
+    [5,  'Parsing CSV…'],
+    [12, 'Fitting KNN (grid search)…'],
+    [30, 'Fitting Logistic Regression…'],
+    [44, 'Fitting Decision Tree…'],
+    [60, 'Fitting Random Forest…'],
+    [74, 'Fitting AdaBoost…'],
+    [88, 'Generating plots…'],
+  ];
+  let si = 0;
+  const tick = setInterval(() => {
+    if (si < stages.length) {
+      setProg(stages[si][0], stages[si][1]);
+      si++;
+    }
+  }, 1800);
+
+  try {
+    // yield to browser so UI updates before blocking Python call
+    await new Promise(r => setTimeout(r, 50));
+    const json_str = await pyodide.runPythonAsync(`run(${JSON.stringify(csv)})`);
+    clearInterval(tick);
+    const data = JSON.parse(json_str);
+
+    if (data.error) { setError(data.error); showProg(false); }
+    else {
+      setProg(100, 'Done.');
+      setTimeout(() => showProg(false), 500);
+      renderResults(data);
+    }
+  } catch(e) {
+    clearInterval(tick);
+    showProg(false);
+    setError('Python error: ' + e.message);
+  }
+
+  document.getElementById('btn-run').disabled = false;
+}
+
+// ── Render results ────────────────────────────────────────────────────
+const CLF_COLORS = {
+  'KNN':'#00f5ff','Logistic Regression':'#ff00a0',
+  'Decision Tree':'#9b00ff','Random Forest':'#ffe600','AdaBoost':'#00ff88'
+};
+
+function renderResults(data) {
+  const tbody = document.getElementById('results-tbody');
+  tbody.innerHTML = '';
+  const best = data.results.reduce((a,b) => b.test_score > a.test_score ? b : a);
+
+  data.results.forEach(r => {
+    const c   = CLF_COLORS[r.name] || '#c0e8ff';
+    const w   = Math.round(r.cv_score * 100);
+    const star = r.name === best.name ? ' ★' : '';
+    tbody.innerHTML += `<tr>
+      <td style="color:${c};font-weight:${star?700:400}">${r.name}${star}</td>
+      <td><div class="sbar-wrap">
+        <div class="sbar" style="width:${w}px;background:linear-gradient(90deg,${c},var(--purple));box-shadow:0 0 5px ${c}"></div>
+        <span style="color:${c}">${r.cv_score.toFixed(4)}</span>
+      </div></td>
+      <td style="color:${c}">${r.test_score.toFixed(4)}</td>
+    </tr>`;
+  });
+
+  const grid = document.getElementById('plot-grid');
+  grid.innerHTML = '';
+  const ORDER = ['scatter','KNN','Logistic Regression','Decision Tree','Random Forest','AdaBoost'];
+  ORDER.forEach(key => {
+    if (!data.plots[key]) return;
+    const card = document.createElement('div');
+    card.className = 'plot-card';
+    const img = document.createElement('img');
+    img.src = 'data:image/png;base64,' + data.plots[key];
+    img.alt = key;
+    const lbl = document.createElement('div');
+    lbl.className = 'plot-lbl';
+    lbl.style.color = CLF_COLORS[key] || 'var(--green)';
+    lbl.textContent = key === 'scatter' ? 'Dataset Scatter' : key + ' Boundary';
+    card.append(img, lbl);
+    grid.appendChild(card);
+  });
+
+  document.getElementById('ml-results').style.display = 'block';
+  document.getElementById('ml-results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function setError(msg) {
+  const el = document.getElementById('ml-error');
+  el.textContent = msg;
+  el.className = 'ml-error' + (msg ? ' show' : '');
+}
+function setHint(msg) { document.getElementById('hint').textContent = msg; }
+function showProg(on) {
+  document.getElementById('ml-progress').className = 'ml-progress' + (on ? ' show' : '');
+}
+function setProg(pct, label) {
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = label;
+}
+
+bootPyodide();
+</script>
+</body>
+</html>
