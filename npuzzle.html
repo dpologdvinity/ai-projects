@@ -88,24 +88,6 @@
 
       </div><!-- /board outer -->
 
-      <!-- Terminal -->
-      <div style="margin-top:1.8rem">
-        <div class="section-title pink-ttl">TERMINAL DISPLAY</div>
-        <div class="cyber-panel pink-panel">
-          <div class="panel-hdr">
-            <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
-            <div class="ttl" style="color:var(--pink)">bash — puzzle.py</div>
-          </div>
-          <div class="term-body" id="np-terminal">
-            <div class="term-out"><span class="l-d">// Configure puzzle on the right, then click SOLVE</span></div>
-          </div>
-          <div class="term-in-row">
-            <span class="term-prompt">user@ai:~$</span>
-            <span class="term-in" id="np-term-cmd" style="cursor:default;user-select:text;color:var(--pink)">python3 puzzle.py ast 1,2,5,3,4,0,6,7,8</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Agent log -->
       <div style="margin-top:1.8rem">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
@@ -146,7 +128,7 @@
           <div>
             <div style="font-family:var(--mono);font-size:0.68rem;color:var(--dim);margin-bottom:0.3rem">INITIAL STATE (comma-separated, 0 = blank)</div>
             <input type="text" class="cyber-input" id="np-state-input" value="1,2,5,3,4,0,6,7,8"
-                   style="width:100%;border-color:rgba(255,0,160,0.4)" oninput="npUpdateTermCmd()">
+                   style="width:100%;border-color:rgba(255,0,160,0.4)">
             <div id="np-state-error" style="font-family:var(--mono);font-size:0.65rem;color:var(--red);margin-top:0.2rem;min-height:1em"></div>
           </div>
 
@@ -468,12 +450,6 @@ function npAppendLog(html){
 
 function npClearLog(){document.getElementById('np-log').innerHTML='<span class="log-info">// Log cleared</span>';}
 
-function npWriteTerminal(lines){
-  const el=document.getElementById('np-terminal');
-  el.innerHTML=lines.map(l=>`<div class="term-out">${l}</div>`).join('');
-  el.scrollTop=el.scrollHeight;
-}
-
 // ── Playback ──
 function npPlayNext(){
   if(!npRunning||npStep>=npPath.length-1){
@@ -536,11 +512,6 @@ function npSolve(){
   document.getElementById('np-stat-algo').textContent=algo.toUpperCase();
   document.getElementById('np-btn-solve').disabled=true;
 
-  npWriteTerminal([
-    `<span class="l-g">user@ai:~$</span> <span class="l-w" style="color:var(--pink)">${document.getElementById('np-term-cmd').textContent}</span>`,
-    `<span class="l-d">// Running ${algoLabel} on ${npN}×${npN} puzzle...</span>`,
-  ]);
-
   setTimeout(()=>{
     const t0=performance.now();
     let result;
@@ -556,10 +527,6 @@ function npSolve(){
 
     if(result.error){
       document.getElementById('np-stat-status').textContent='ERROR';
-      npWriteTerminal([
-        `<span class="l-g">user@ai:~$</span> <span class="l-w" style="color:var(--pink)">${document.getElementById('np-term-cmd').textContent}</span>`,
-        `<span style="color:var(--red)">✗ ${result.error} — nodes expanded: ${result.nodesExpanded.toLocaleString()}</span>`,
-      ]);
       return;
     }
 
@@ -575,12 +542,6 @@ function npSolve(){
     document.getElementById('np-btn-fwd').disabled=false;
 
     npUpdateProgress();
-
-    npWriteTerminal([
-      `<span class="l-g">user@ai:~$</span> <span class="l-w" style="color:var(--pink)">${document.getElementById('np-term-cmd').textContent}</span>`,
-      `<span class="l-d">// ${algoLabel} · time: ${elapsed}s · nodes: ${result.nodesExpanded.toLocaleString()} · path: ${result.path.length-1} · depth: ${result.maxDepth}</span>`,
-      `<span style="color:var(--pink)">// Animating solution...</span>`,
-    ]);
 
     npMaybeLog(0);
     npStartPlayback();
@@ -618,14 +579,12 @@ function npReset(){
   document.getElementById('np-btn-pause').disabled=true;
   document.getElementById('np-btn-back').disabled=true;
   document.getElementById('np-btn-fwd').disabled=true;
-  npWriteTerminal([`<span class="l-d">// Configure puzzle on the right, then click SOLVE</span>`]);
 }
 
 function npLoadState(){
   const parsed=_npParseInput();if(!parsed)return;
   npPause();npStartState=parsed;npPath=[];npStep=0;
   npRenderGrid(parsed,-1);npUpdateProgress();npClearLog();
-  npUpdateTermCmd();
   document.getElementById('np-stat-status').textContent='LOADED';
 }
 
@@ -638,7 +597,6 @@ function npRandom(){
   document.getElementById('np-state-error').textContent='';
   npPause();npStartState=arr;npPath=[];npStep=0;
   npRenderGrid(arr,-1);npUpdateProgress();npClearLog();
-  npUpdateTermCmd();
   document.getElementById('np-stat-status').textContent='LOADED';
 }
 
@@ -648,26 +606,18 @@ function npSizeChange(){
   document.getElementById('np-state-input').value=goal.join(',');
   document.getElementById('np-state-error').textContent='';
   npPause();npStartState=goal;npPath=[];npStep=0;
-  npRenderGrid(goal,-1);npUpdateProgress();npUpdateTermCmd();
+  npRenderGrid(goal,-1);npUpdateProgress();
 }
 
 function npAlgoChange(){
   const algo=document.getElementById('np-algo').value;
   document.getElementById('np-algo-desc').textContent=NP_ALGO_DESC[algo]||'';
-  npUpdateTermCmd();
 }
 
 function npSpeedChange(v){npSpeed=parseInt(v);document.getElementById('np-speed-lbl').textContent=v+'ms/move';}
 
-function npUpdateTermCmd(){
-  const algo=document.getElementById('np-algo').value;
-  const state=document.getElementById('np-state-input').value.trim();
-  document.getElementById('np-term-cmd').textContent=`python3 puzzle.py ${algo} ${state}`;
-}
-
 // ── Init ──
 npRenderGrid(npStartState,-1);
-npUpdateTermCmd();
 </script>
 </body>
 </html>

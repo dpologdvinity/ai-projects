@@ -93,24 +93,6 @@
           <div class="cyber-range-label"><span>FAST (20ms)</span><span>SLOW (800ms)</span></div>
         </div>
 
-        <!-- Terminal -->
-        <div>
-          <div class="section-title green-ttl">TERMINAL DISPLAY</div>
-          <div class="cyber-panel green-panel">
-            <div class="panel-hdr">
-              <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
-              <div class="ttl" style="color:var(--green)">bash — transformer.py</div>
-            </div>
-            <div class="term-body" id="tf-terminal">
-              <div class="term-out"><span class="l-d">// Click TRAIN to start optimizing the encoder-decoder on the copy task</span></div>
-            </div>
-            <div class="term-in-row">
-              <span class="term-prompt">user@ai:~$</span>
-              <span class="term-in" id="tf-term-cmd" style="cursor:default;user-select:text;color:var(--green)">python3 transformer.py --train</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Training log -->
         <div>
           <div class="section-title green-ttl" style="margin:0 0 0.75rem">TRAINING LOG</div>
@@ -725,12 +707,6 @@ function tfAppendLog(html){
   while(el.children.length>60)el.removeChild(el.firstChild);
 }
 
-function tfWriteTerminal(lines){
-  const el=document.getElementById('tf-terminal');
-  el.innerHTML=lines.map(l=>`<div class="term-out">${l}</div>`).join('');
-  el.scrollTop=el.scrollHeight;
-}
-
 const TF_ATTN_TYPES=[
   {key:'enc_self',label:'Encoder Self-Attention'},
   {key:'dec_self',label:'Decoder Self-Attention (causal)'},
@@ -815,10 +791,6 @@ function tfTrainToggle(){
   if(tfRunning){
     btn.querySelector('.btn-txt').textContent='⏸ PAUSE';
     document.getElementById('tf-stat-status').textContent='TRAINING';
-    tfWriteTerminal([
-      `<span class="l-g">user@ai:~$</span> <span class="l-w" style="color:var(--green)">python3 transformer.py --train</span>`,
-      `<span class="l-d">// Training encoder-decoder on copy task (Adam, lr=${ADAM.lr})...</span>`,
-    ]);
     tfTimer=setInterval(tfTick,tfSpeed);
   }else{
     btn.querySelector('.btn-txt').textContent='▶ TRAIN';
@@ -848,7 +820,6 @@ function tfReset(){
   lastAttnStore=null;lastAttnTokens=null;
   tfDrawLossChart();
   tfUpdateInfoPanel();
-  tfWriteTerminal([`<span class="l-d">// Click TRAIN to start optimizing the encoder-decoder on the copy task</span>`]);
 }
 
 function tfSpeedChange(v){

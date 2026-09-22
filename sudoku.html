@@ -91,24 +91,6 @@
 
       </div><!-- /board outer -->
 
-      <!-- Terminal -->
-      <div style="margin-top:1.8rem">
-        <div class="section-title purple-ttl">TERMINAL DISPLAY</div>
-        <div class="cyber-panel purple-panel">
-          <div class="panel-hdr">
-            <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
-            <div class="ttl" style="color:var(--purple)">bash — sudoku.py</div>
-          </div>
-          <div class="term-body" id="sdk-terminal">
-            <div class="term-out"><span class="l-d">// Select a puzzle and click SOLVE</span></div>
-          </div>
-          <div class="term-in-row">
-            <span class="term-prompt" style="color:var(--purple)">user@ai:~$</span>
-            <span class="term-in" id="sdk-term-cmd" style="cursor:default;user-select:text;color:var(--purple)">python3 sudoku.py &lt;puzzle&gt;</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Agent log -->
       <div style="margin-top:1.8rem">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
@@ -463,7 +445,6 @@ function sdkLoadPuzzle(idx) {
   sdkRenderAll();
   sdkUpdateStats();
   sdkUpdateProgress();
-  sdkUpdateTerminal(idx);
   sdkUpdatePreview(idx);
 
   // Enable controls
@@ -473,14 +454,6 @@ function sdkLoadPuzzle(idx) {
 
   document.getElementById('sdk-stat-status').textContent = 'LOADED';
   document.getElementById('sdk-stat-puzzle').textContent = idx + 1;
-
-  // Write terminal boot message
-  sdkWriteTerminal([
-    `<span class="l-g">user@ai:~$</span> <span class="l-w" style="color:var(--purple)">${sdkTermCmd(idx)}</span>`,
-    `<span class="l-d">// Loaded puzzle #${idx+1} — ${sdkGivens.filter(Boolean).length} givens, ${81 - sdkGivens.filter(Boolean).length} empty cells</span>`,
-    `<span class="l-d">// Live solver computed ${sdkTrace.length} steps (${sdkTrace.filter(s=>s.bt).length} backtracks)</span>`,
-    `<span style="color:var(--purple)">// Click ▶ SOLVE to begin playback</span>`,
-  ]);
 
   // Clear log
   sdkClearLog();
@@ -638,7 +611,6 @@ function sdkFinished() {
   });
 
   sdkAppendLog(`<span style="color:var(--green)">[SOLVED] Puzzle #${sdkPuzzleIdx+1} complete — ${sdkTrace.length} steps, ${sdkBtCount} backtracks</span>`);
-  sdkWriteTerminalLine(`<span style="color:var(--green)">✓ Solution verified: ${SDK_FINISHES[sdkPuzzleIdx]}</span>`);
 }
 
 // ── reset / load ──
@@ -696,29 +668,6 @@ function sdkUpdateStats() {
   document.getElementById('sdk-lv-cell').textContent   = curCell;
   document.getElementById('sdk-stat-filled').textContent = sdkFilled;
   document.getElementById('sdk-stat-bt').textContent     = sdkBtCount;
-}
-
-// ── terminal ──
-function sdkTermCmd(idx) {
-  const puzzle = SDK_STARTS[idx];
-  return `python3 sudoku.py ${puzzle}`;
-}
-
-function sdkUpdateTerminal(idx) {
-  const cmd = sdkTermCmd(idx);
-  document.getElementById('sdk-term-cmd').textContent = cmd;
-}
-
-function sdkWriteTerminal(lines) {
-  const el = document.getElementById('sdk-terminal');
-  el.innerHTML = lines.map(l => `<div class="term-out">${l}</div>`).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-function sdkWriteTerminalLine(line) {
-  const el = document.getElementById('sdk-terminal');
-  el.innerHTML += `<div class="term-out">${line}</div>`;
-  el.scrollTop = el.scrollHeight;
 }
 
 // ── puzzle preview (mini text grid) ──
