@@ -71,19 +71,8 @@
           <button class="cyber-btn" id="np-btn-pause" onclick="npPause()" disabled><span class="btn-txt">⏸ PAUSE</span></button>
           <button class="cyber-btn" id="np-btn-back" onclick="npStepBack()" disabled><span class="btn-txt">◀ STEP</span></button>
           <button class="cyber-btn" id="np-btn-fwd" onclick="npStepFwd()" disabled><span class="btn-txt">STEP ▶</span></button>
+          <button class="cyber-btn green" id="np-btn-playback" onclick="npPlayback()" disabled><span class="btn-txt">▶ PLAYBACK</span></button>
           <button class="cyber-btn" onclick="npReset()"><span class="btn-txt">↺ RESET</span></button>
-        </div>
-
-        <!-- Speed -->
-        <div style="width:100%;max-width:380px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
-            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">PLAYBACK SPEED</span>
-            <span style="font-family:var(--mono);font-size:0.72rem;color:var(--pink)" id="np-speed-lbl">300ms/move</span>
-          </div>
-          <input type="range" class="cyber-slider" min="50" max="2000" step="50" value="300"
-                 id="np-speed" oninput="npSpeedChange(this.value)"
-                 style="background:linear-gradient(90deg,var(--pink),var(--purple))">
-          <div class="cyber-range-label"><span>FAST (50ms)</span><span>SLOW (2000ms)</span></div>
         </div>
 
       </div><!-- /board outer -->
@@ -127,7 +116,7 @@
 
           <div>
             <div style="font-family:var(--mono);font-size:0.68rem;color:var(--dim);margin-bottom:0.3rem">INITIAL STATE (comma-separated, 0 = blank)</div>
-            <input type="text" class="cyber-input" id="np-state-input" value="1,2,5,3,4,0,6,7,8"
+            <input type="text" class="cyber-input" id="np-state-input" value="" placeholder="RANDOM"
                    style="width:100%;border-color:rgba(255,0,160,0.4)">
             <div id="np-state-error" style="font-family:var(--mono);font-size:0.65rem;color:var(--red);margin-top:0.2rem;min-height:1em"></div>
           </div>
@@ -394,7 +383,8 @@ function npRunUCS(start,n,limit){
 }
 
 // ── Playback state ──
-let npPath=[],npStep=0,npRunning=false,npTimer=null,npSpeed=300;
+let npPath=[],npStep=0,npRunning=false,npTimer=null;
+const npSpeed=120;
 let npStartState=[1,2,5,3,4,0,6,7,8],npN=3;
 
 const NP_ALGO_DESC={
@@ -480,6 +470,17 @@ function npFinished(){
   });
   npAppendLog(`<span style="color:var(--green)">[SOLVED] ${npPath.length-1} moves — goal reached ✓</span>`);
   document.getElementById('np-stat-status').textContent='SOLVED ✓';
+  document.getElementById('np-btn-playback').disabled=npPath.length<2;
+}
+
+function npPlayback(){
+  if(npPath.length<2)return;
+  npPause();
+  npStep=0;
+  npRenderGrid(npPath[0].state,-1);
+  npUpdateProgress();
+  npClearLog();npMaybeLog(0);
+  npStartPlayback();
 }
 
 // ── Solve ──
@@ -495,15 +496,31 @@ function _npParseInput(){
   return parsed;
 }
 
+function npGenRandom(n){
+  let arr;
+  do{arr=Array.from({length:n*n},(_,i)=>i).sort(()=>Math.random()-0.5);}
+  while(!npIsSolvable(arr,n));
+  return arr;
+}
+
 function npSolve(){
-  const parsed=_npParseInput();
-  if(!parsed)return;
+  npN=parseInt(document.getElementById('np-size').value);
+  const raw=document.getElementById('np-state-input').value.trim();
+  let parsed;
+  if(raw===''){
+    parsed=npGenRandom(npN);
+    document.getElementById('np-state-error').textContent='';
+  }else{
+    parsed=_npParseInput();
+    if(!parsed)return;
+  }
+
   const algo=document.getElementById('np-algo').value;
-  const algoLabel=document.getElementById('np-algo').options[document.getElementById('np-algo').selectedIndex].text;
 
   npPause();
   npStartState=parsed;
   npPath=[];npStep=0;
+  document.getElementById('np-btn-playback').disabled=true;
   npRenderGrid(parsed,-1);
   npClearLog();
 
@@ -579,23 +596,24 @@ function npReset(){
   document.getElementById('np-btn-pause').disabled=true;
   document.getElementById('np-btn-back').disabled=true;
   document.getElementById('np-btn-fwd').disabled=true;
+  document.getElementById('np-btn-playback').disabled=true;
 }
 
 function npLoadState(){
   const parsed=_npParseInput();if(!parsed)return;
   npPause();npStartState=parsed;npPath=[];npStep=0;
+  document.getElementById('np-btn-playback').disabled=true;
   npRenderGrid(parsed,-1);npUpdateProgress();npClearLog();
   document.getElementById('np-stat-status').textContent='LOADED';
 }
 
 function npRandom(){
   npN=parseInt(document.getElementById('np-size').value);
-  let arr;
-  do{arr=Array.from({length:npN*npN},(_,i)=>i).sort(()=>Math.random()-0.5);}
-  while(!npIsSolvable(arr,npN));
+  const arr=npGenRandom(npN);
   document.getElementById('np-state-input').value=arr.join(',');
   document.getElementById('np-state-error').textContent='';
   npPause();npStartState=arr;npPath=[];npStep=0;
+  document.getElementById('np-btn-playback').disabled=true;
   npRenderGrid(arr,-1);npUpdateProgress();npClearLog();
   document.getElementById('np-stat-status').textContent='LOADED';
 }
@@ -603,9 +621,10 @@ function npRandom(){
 function npSizeChange(){
   npN=parseInt(document.getElementById('np-size').value);
   const goal=Array.from({length:npN*npN},(_,i)=>i);
-  document.getElementById('np-state-input').value=goal.join(',');
+  document.getElementById('np-state-input').value='';
   document.getElementById('np-state-error').textContent='';
   npPause();npStartState=goal;npPath=[];npStep=0;
+  document.getElementById('np-btn-playback').disabled=true;
   npRenderGrid(goal,-1);npUpdateProgress();
 }
 
@@ -613,8 +632,6 @@ function npAlgoChange(){
   const algo=document.getElementById('np-algo').value;
   document.getElementById('np-algo-desc').textContent=NP_ALGO_DESC[algo]||'';
 }
-
-function npSpeedChange(v){npSpeed=parseInt(v);document.getElementById('np-speed-lbl').textContent=v+'ms/move';}
 
 // ── Init ──
 npRenderGrid(npStartState,-1);
