@@ -612,15 +612,6 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
   text-align: center;
   padding: 2rem;
 }
-.hero-tag {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  color: var(--cyan);
-  letter-spacing: 0.4em;
-  text-transform: uppercase;
-  margin-bottom: 1rem;
-  opacity: 0.8;
-}
 .hero-name {
   font-family: var(--orb);
   font-size: clamp(2.5rem, 8vw, 5.5rem);
@@ -630,26 +621,22 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
   margin-bottom: 0.5rem;
   color: #fff;
 }
-.hero-name.hero-name-sm {
-  font-size: clamp(1.4rem, 3.2vw, 2.1rem);
-  letter-spacing: 0.02em;
-  margin-bottom: 1rem;
+.hero-name.hero-name-xs {
+  font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+  letter-spacing: 0.15em;
+  margin-bottom: 1.25rem;
 }
 .hero-name .line1 { display: block; color: var(--cyan); text-shadow: 0 0 20px var(--cyan), 0 0 60px var(--cyan), 0 0 120px rgba(0,245,255,0.4); }
 .hero-name .line2 { display: block; color: var(--pink); text-shadow: 0 0 20px var(--pink), 0 0 60px var(--pink), 0 0 120px rgba(255,0,160,0.4); }
-.hero-name-sm .line1, .hero-name-sm .line2 {
+.hero-name-xs .line1, .hero-name-xs .line2 {
   display: inline;
   text-shadow: 0 0 10px currentColor;
 }
-.hero-name-sm .line2::before { content: " "; }
-.hero-sub {
-  font-family: var(--orb);
-  font-size: clamp(0.85rem, 2.4vw, 1.15rem);
-  color: var(--purple);
-  letter-spacing: 0.5em;
-  text-transform: uppercase;
-  margin-bottom: 1.1rem;
-  text-shadow: 0 0 15px var(--purple);
+.hero-name-xs .line2::before { content: " "; }
+.hero-name-mono.hero-name-xs .line1,
+.hero-name-mono.hero-name-xs .line2 {
+  color: var(--dim);
+  text-shadow: none;
 }
 .hero-desc {
   font-family: var(--raj);
@@ -661,25 +648,24 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
 }
 .hero-links {
   display: flex;
-  gap: 1.25rem;
+  gap: 1rem;
   justify-content: center;
   margin-bottom: 2.5rem;
 }
 .hero-links a {
-  font-family: var(--orb);
-  font-size: 0.7rem;
-  letter-spacing: 0.15em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
   color: var(--dim);
-  padding: 0.4rem 1rem;
   border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 999px;
-  text-decoration: none;
+  border-radius: 50%;
   transition: all 0.15s;
 }
 .hero-links a:hover {
   color: var(--cyan);
   border-color: var(--cyan);
-  text-shadow: 0 0 8px var(--cyan);
   box-shadow: 0 0 15px rgba(0,245,255,0.2);
 }
 
