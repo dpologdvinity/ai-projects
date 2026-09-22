@@ -165,6 +165,7 @@
       <div class="stat-chips">
         <span class="stat-chip">STEP <span class="val" id="stat-step">0</span></span>
         <span class="stat-chip green">MAX <span class="val" id="stat-max">—</span></span>
+        <span class="stat-chip" id="search-mode-chip" style="display:none">MODE <span class="val" id="stat-search-info">—</span></span>
         <span class="stat-chip pink">STATUS <span class="val" id="stat-status">IDLE</span></span>
       </div>
     </div>
@@ -237,6 +238,14 @@
           </div>
 
           <div class="cfg-row">
+            <div class="cfg-lbl">SEARCH MODE</div>
+            <select class="cyber-select" id="cfg-search-mode" style="width:100%" onchange="updateSearchModeUI()">
+              <option value="fixed-depth" selected>Fixed Depth</option>
+              <option value="alpha-beta-id">Alpha-Beta + ID</option>
+            </select>
+          </div>
+
+          <div class="cfg-row" id="depth-control">
             <div class="cfg-lbl">SEARCH DEPTH</div>
             <select class="cyber-select" id="cfg-depth" style="width:100%">
               <option value="2">2 — fastest</option>
@@ -244,6 +253,15 @@
               <option value="4">4 — stronger</option>
               <option value="5">5 — slow</option>
             </select>
+          </div>
+
+          <div class="cfg-row" id="time-budget-control" style="display:none">
+            <div class="cfg-lbl">TIME BUDGET</div>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <input type="range" class="cyber-slider" min="0.05" max="1" step="0.01" value="0.179"
+                     id="cfg-time-budget" oninput="document.getElementById('time-budget-lbl').textContent=(parseFloat(this.value)*1000).toFixed(0)+'ms'">
+              <span class="cfg-lbl" id="time-budget-lbl" style="width:3.5rem;text-align:right;color:var(--cyan)">179ms</span>
+            </div>
           </div>
 
           <div class="cfg-row">
@@ -360,15 +378,33 @@ let game    = null;     // { map, steps, score }
 let running = false;
 let timer   = null;
 let speed   = 50;       // ms per step
+let lastSearchDepth = 0; // tracks max depth reached in iterative deepening
 
 // ═══════════════════════════════════════════════════════════════════
-//  SETTINGS TOGGLE
+//  SETTINGS TOGGLE & SEARCH MODE UI
 // ═══════════════════════════════════════════════════════════════════
 function toggleSettings() {
   const btn   = document.getElementById('settings-toggle');
   const panel = document.getElementById('settings-panel');
   const open  = panel.classList.toggle('open');
   btn.classList.toggle('open', open);
+}
+
+function updateSearchModeUI() {
+  const mode = document.getElementById('cfg-search-mode').value;
+  const depthControl = document.getElementById('depth-control');
+  const timeBudgetControl = document.getElementById('time-budget-control');
+  const searchModeChip = document.getElementById('search-mode-chip');
+
+  if (mode === 'fixed-depth') {
+    depthControl.style.display = 'flex';
+    timeBudgetControl.style.display = 'none';
+    searchModeChip.style.display = 'none';
+  } else {
+    depthControl.style.display = 'none';
+    timeBudgetControl.style.display = 'flex';
+    searchModeChip.style.display = 'inline-block';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -515,7 +551,7 @@ function evalBoard(m) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  EXPECTIMINIMAX
+//  EXPECTIMINIMAX (Fixed Depth - no pruning)
 // ═══════════════════════════════════════════════════════════════════
 function expecti(m, depth, isMax) {
   if (!depth || !canMove(m)) return evalBoard(m);
@@ -553,7 +589,79 @@ function expecti(m, depth, isMax) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  EXPECTIMINIMAX WITH ALPHA-BETA PRUNING (Iterative Deepening)
+// ═══════════════════════════════════════════════════════════════════
+let alphaBetaDeadline = 0;
+let alphaBetaTimesUp = false;
+
+function expectiAB(m, depth, isMax, alpha, beta) {
+  // Check time budget
+  if (performance.now() >= alphaBetaDeadline) {
+    alphaBetaTimesUp = true;
+    return evalBoard(m);
+  }
+
+  if (!depth || !canMove(m)) return evalBoard(m);
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let d = 0; d < 4; d++) {
+      const { map: nm, moved } = applyMove(m, d);
+      if (!moved) continue;
+      const sc = expectiAB(nm, depth - 1, false, alpha, beta);
+      best = Math.max(best, sc);
+      alpha = Math.max(alpha, best);
+      if (best >= beta) break; // beta cutoff
+    }
+    return best === -Infinity ? evalBoard(m) : best;
+  } else {
+    const adversarial = document.getElementById('cfg-adversarial').checked;
+    const prob2 = parseFloat(document.getElementById('cfg-prob2').value);
+    const cells = getEmpty(m);
+    if (!cells.length) return evalBoard(m);
+
+    if (adversarial) {
+      let worst = Infinity;
+      for (const [r, c] of cells) {
+        for (const v of [2, 4]) {
+          const nm = cloneMap(m); nm[r][c] = v;
+          const sc = expectiAB(nm, depth - 1, true, alpha, beta);
+          worst = Math.min(worst, sc);
+          beta = Math.min(beta, worst);
+          if (worst <= alpha) break; // alpha cutoff
+        }
+        if (worst <= alpha) break;
+      }
+      return worst;
+    }
+
+    let total = 0;
+    for (const [r, c] of cells) {
+      for (const [v, p] of [[2, prob2], [4, 1 - prob2]]) {
+        const nm = cloneMap(m); nm[r][c] = v;
+        const sc = expectiAB(nm, depth - 1, true, alpha, beta);
+        total += (p / cells.length) * sc;
+      }
+    }
+    return total;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BEST MOVE SELECTION (dispatches to selected mode)
+// ═══════════════════════════════════════════════════════════════════
 function bestMove(m) {
+  const mode = document.getElementById('cfg-search-mode').value;
+
+  if (mode === 'alpha-beta-id') {
+    return bestMoveAlphaBetaID(m);
+  } else {
+    return bestMoveFixedDepth(m);
+  }
+}
+
+function bestMoveFixedDepth(m) {
   const depth = parseInt(document.getElementById('cfg-depth').value);
   let best = -Infinity, bestDir = 0;
   for (let d = 0; d < 4; d++) {
@@ -563,6 +671,42 @@ function bestMove(m) {
     if (sc > best) { best = sc; bestDir = d; }
   }
   return bestDir;
+}
+
+function bestMoveAlphaBetaID(m) {
+  const timeBudgetSecs = parseFloat(document.getElementById('cfg-time-budget').value);
+  const timeBudgetMs = timeBudgetSecs * 1000;
+
+  alphaBetaDeadline = performance.now() + timeBudgetMs;
+  alphaBetaTimesUp = false;
+  lastSearchDepth = 0;
+
+  let chosenAction = null;
+  let depthLimit = 1;
+
+  // Iterative deepening loop
+  while (depthLimit <= 20 && !alphaBetaTimesUp) {
+    alphaBetaTimesUp = false;
+    let best = -Infinity;
+    let bestDir = 0;
+
+    for (let d = 0; d < 4; d++) {
+      const { map: nm, moved } = applyMove(m, d);
+      if (!moved) continue;
+      const sc = expectiAB(nm, depthLimit - 1, false, -Infinity, Infinity);
+      if (sc > best) { best = sc; bestDir = d; }
+    }
+
+    if (!alphaBetaTimesUp) {
+      chosenAction = bestDir;
+      lastSearchDepth = depthLimit;
+    }
+
+    depthLimit++;
+  }
+
+  if (chosenAction === null) chosenAction = 0;
+  return chosenAction;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -619,12 +763,16 @@ function renderBoard() {
 
 function updateStats(lastMove) {
   const mt = maxTile(game.map);
+  const mode = document.getElementById('cfg-search-mode').value;
+  const searchInfo = mode === 'alpha-beta-id' ? `D${lastSearchDepth}` : `D${document.getElementById('cfg-depth').value}`;
+
   document.getElementById('g48-step').textContent     = game.steps;
   document.getElementById('g48-max').textContent      = mt || '—';
   document.getElementById('g48-score').textContent    = game.score;
   document.getElementById('g48-lastmove').textContent = lastMove || '—';
   document.getElementById('stat-step').textContent    = game.steps;
   document.getElementById('stat-max').textContent     = mt || '—';
+  document.getElementById('stat-search-info').textContent = searchInfo;
   document.getElementById('stat-status').textContent  = running ? 'RUNNING' : (canMove(game.map) ? 'PAUSED' : 'DONE');
 }
 
@@ -738,6 +886,7 @@ function g48SpeedChange(v) {
 
 // ── init on load ──
 g48Init();
+updateSearchModeUI();
 </script>
 </body>
 </html>
