@@ -630,15 +630,25 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
   margin-bottom: 0.5rem;
   color: #fff;
 }
+.hero-name.hero-name-sm {
+  font-size: clamp(1.4rem, 3.2vw, 2.1rem);
+  letter-spacing: 0.02em;
+  margin-bottom: 1rem;
+}
 .hero-name .line1 { display: block; color: var(--cyan); text-shadow: 0 0 20px var(--cyan), 0 0 60px var(--cyan), 0 0 120px rgba(0,245,255,0.4); }
 .hero-name .line2 { display: block; color: var(--pink); text-shadow: 0 0 20px var(--pink), 0 0 60px var(--pink), 0 0 120px rgba(255,0,160,0.4); }
+.hero-name-sm .line1, .hero-name-sm .line2 {
+  display: inline;
+  text-shadow: 0 0 10px currentColor;
+}
+.hero-name-sm .line2::before { content: " "; }
 .hero-sub {
   font-family: var(--orb);
-  font-size: clamp(0.75rem, 2vw, 1rem);
+  font-size: clamp(0.85rem, 2.4vw, 1.15rem);
   color: var(--purple);
   letter-spacing: 0.5em;
   text-transform: uppercase;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.1rem;
   text-shadow: 0 0 15px var(--purple);
 }
 .hero-desc {
@@ -646,8 +656,31 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
   font-size: 1rem;
   color: var(--dim);
   max-width: 500px;
-  margin: 0 auto 2.5rem;
+  margin: 0 auto 1.5rem;
   line-height: 1.7;
+}
+.hero-links {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  margin-bottom: 2.5rem;
+}
+.hero-links a {
+  font-family: var(--orb);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--dim);
+  padding: 0.4rem 1rem;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.hero-links a:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  text-shadow: 0 0 8px var(--cyan);
+  box-shadow: 0 0 15px rgba(0,245,255,0.2);
 }
 
 /* Project cards on main */
