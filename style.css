@@ -713,12 +713,18 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
   border-color: var(--purple);
   box-shadow: 0 0 30px rgba(155,0,255,0.2), inset 0 0 30px rgba(155,0,255,0.05);
 }
+.pcm-inner.green-card { border-color: rgba(0,255,136,0.35); }
+.proj-card-main:hover .pcm-inner.green-card {
+  border-color: var(--green);
+  box-shadow: 0 0 30px rgba(0,255,136,0.2), inset 0 0 30px rgba(0,255,136,0.05);
+}
 .pcm-num { font-family: var(--orb); font-size: 0.6rem; color: var(--dim); letter-spacing: 0.2em; margin-bottom: 1rem; }
 .pcm-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
 .pcm-title { font-family: var(--orb); font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; color: #fff; }
 .pcm-title.cyan   { color: var(--cyan);   text-shadow: 0 0 15px var(--cyan); }
 .pcm-title.pink   { color: var(--pink);   text-shadow: 0 0 15px var(--pink); }
 .pcm-title.purple { color: var(--purple); text-shadow: 0 0 15px var(--purple); }
+.pcm-title.green  { color: var(--green);  text-shadow: 0 0 15px var(--green); }
 .pcm-desc { font-family: var(--raj); font-size: 0.82rem; color: var(--dim); line-height: 1.5; margin-bottom: 1.25rem; }
 .pcm-enter {
   font-family: var(--orb);
@@ -734,6 +740,7 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
 .proj-card-main:hover .pcm-enter { color: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,245,255,0.3); }
 .proj-card-main:hover .pcm-inner.pink-card .pcm-enter { color: var(--pink); border-color: var(--pink); box-shadow: 0 0 10px rgba(255,0,160,0.3); }
 .proj-card-main:hover .pcm-inner.purple-card .pcm-enter { color: var(--purple); border-color: var(--purple); box-shadow: 0 0 10px rgba(155,0,255,0.3); }
+.proj-card-main:hover .pcm-inner.green-card .pcm-enter { color: var(--green); border-color: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.3); }
 
 /* ══════════════════════════════════════════════════════
    SHARED PROJECT PAGE LAYOUT
@@ -960,6 +967,38 @@ pre.cpre { margin: 0; padding: 0.75rem 0; font-family: var(--mono); font-size: 0
 .sdk-inp { width: 100%; height: 100%; background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 0.9rem; color: var(--dim); text-align: center; cursor: default; pointer-events: none; }
 .sdk-inp:focus { background: rgba(0,245,255,0.08); color: #fff; }
 @keyframes cellPop { 0% { transform: scale(0.6); opacity:0.5; } 65% { transform: scale(1.15); } 100% { transform: scale(1); opacity:1; } }
+
+/* ══════════════════════════════════════════════════════
+   TRANSFORMER
+══════════════════════════════════════════════════════ */
+.tf-tok-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.tf-tok {
+  min-width: 32px; height: 32px; padding: 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 0.78rem; color: var(--green);
+  background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.35);
+  animation: tileAppear 0.15s ease;
+}
+.tf-tok.tf-tgt { color: var(--cyan); background: rgba(0,245,255,0.08); border-color: rgba(0,245,255,0.35); }
+.tf-tok.tf-pred { color: var(--yellow); background: rgba(255,230,0,0.08); border-color: rgba(255,230,0,0.35); }
+.tf-tok.tf-wrong { color: var(--red); background: rgba(255,59,59,0.1); border-color: rgba(255,59,59,0.4); }
+.tf-heat-wrap { overflow-x: auto; }
+.tf-heat-grid { display: inline-grid; gap: 2px; }
+.tf-heat-cell {
+  width: 26px; height: 26px; border: 1px solid rgba(0,255,136,0.15);
+  position: relative; cursor: default;
+}
+.tf-heat-lbl {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--dim);
+  display: flex; align-items: center; justify-content: center;
+}
+.tf-loss-chart { width: 100%; height: 140px; display: block; background: rgba(0,0,0,0.2); border: 1px solid var(--border); }
+.tf-head-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.tf-head-tab {
+  font-family: var(--mono); font-size: 0.65rem; padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border); color: var(--dim); cursor: pointer; background: none;
+}
+.tf-head-tab.act { color: var(--green); border-color: var(--green); background: rgba(0,255,136,0.08); }
 
 /* ══════════════════════════════════════════════════════
    AGENT LOG

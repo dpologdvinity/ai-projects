@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRANSFORMER // KB</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo"><a href="index.html">KB<span style="color:var(--dim);font-weight:400"> // AI</span></a></div>
+  <ul class="nav-links">
+    <li><a href="index.html">MAIN</a></li>
+    <li><a href="2048.html">2048</a></li>
+    <li><a href="npuzzle.html">N-PUZZLE</a></li>
+    <li><a href="sudoku.html">SUDOKU</a></li>
+    <li><a href="transformer.html" class="act">TRANSFORMER</a></li>
+  </ul>
+</nav>
+
+<div class="page act" id="page-transformer">
+<div class="proj-page">
+
+  <!-- Header -->
+  <div class="proj-header">
+    <div class="proj-header-left">
+      <a class="back-btn" href="index.html">← MAIN</a>
+      <div class="proj-pg-tag">04 // SEQUENCE MODELING</div>
+      <div class="proj-pg-title neon-green">TRANSFORMER</div>
+      <div class="proj-pg-sub">Encoder-Decoder · Multi-Head Attention · Hand-Rolled Autograd</div>
+    </div>
+    <div class="proj-header-right">
+      <div class="stat-chips">
+        <span class="stat-chip green">STEP <span class="val" id="tf-stat-step">0</span></span>
+        <span class="stat-chip">LOSS <span class="val" id="tf-stat-loss">—</span></span>
+        <span class="stat-chip green">ACC <span class="val" id="tf-stat-acc">—</span></span>
+        <span class="stat-chip">STATUS <span class="val" id="tf-stat-status">IDLE</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="proj-body">
+
+    <!-- GAME COLUMN -->
+    <div class="proj-game-col">
+
+      <div style="display:flex;flex-direction:column;gap:1.2rem">
+
+        <!-- Live example -->
+        <div>
+          <div class="section-title green-ttl">LIVE TRAINING EXAMPLE (COPY TASK)</div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <div>
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--dim);margin-bottom:0.25rem">ENCODER INPUT (SRC)</div>
+              <div class="tf-tok-row" id="tf-row-src"></div>
+            </div>
+            <div>
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--dim);margin-bottom:0.25rem">TARGET (GROUND TRUTH)</div>
+              <div class="tf-tok-row" id="tf-row-tgt"></div>
+            </div>
+            <div>
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--dim);margin-bottom:0.25rem">MODEL PREDICTION</div>
+              <div class="tf-tok-row" id="tf-row-pred"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loss chart -->
+        <div>
+          <div class="section-title green-ttl">TRAINING LOSS</div>
+          <canvas id="tf-loss-canvas" class="tf-loss-chart"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center">
+          <button class="cyber-btn green" id="tf-btn-train" onclick="tfTrainToggle()"><span class="btn-txt">▶ TRAIN</span></button>
+          <button class="cyber-btn" id="tf-btn-step" onclick="tfSingleStep()"><span class="btn-txt">STEP</span></button>
+          <button class="cyber-btn" onclick="tfReset()"><span class="btn-txt">↺ RESET WEIGHTS</span></button>
+        </div>
+
+        <!-- Speed -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">TRAINING SPEED</span>
+            <span style="font-family:var(--mono);font-size:0.72rem;color:var(--green)" id="tf-speed-lbl">100ms/step</span>
+          </div>
+          <input type="range" class="cyber-slider" min="20" max="800" step="20" value="100"
+                 id="tf-speed" oninput="tfSpeedChange(this.value)"
+                 style="background:linear-gradient(90deg,var(--green),var(--cyan))">
+          <div class="cyber-range-label"><span>FAST (20ms)</span><span>SLOW (800ms)</span></div>
+        </div>
+
+        <!-- Terminal -->
+        <div>
+          <div class="section-title green-ttl">TERMINAL DISPLAY</div>
+          <div class="cyber-panel green-panel">
+            <div class="panel-hdr">
+              <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+              <div class="ttl" style="color:var(--green)">bash — transformer.py</div>
+            </div>
+            <div class="term-body" id="tf-terminal">
+              <div class="term-out"><span class="l-d">// Click TRAIN to start optimizing the encoder-decoder on the copy task</span></div>
+            </div>
+            <div class="term-in-row">
+              <span class="term-prompt">user@ai:~$</span>
+              <span class="term-in" id="tf-term-cmd" style="cursor:default;user-select:text;color:var(--green)">python3 transformer.py --train</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Training log -->
+        <div>
+          <div class="section-title green-ttl" style="margin:0 0 0.75rem">TRAINING LOG</div>
+          <div class="agent-log" id="tf-log" style="max-height:200px;border-color:rgba(0,255,136,0.3)">
+            <span class="log-info">// Training steps will appear here</span>
+          </div>
+        </div>
+
+        <!-- Attention heatmap -->
+        <div>
+          <div class="section-title green-ttl">ATTENTION WEIGHTS</div>
+          <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:0.6rem">
+            <select class="cyber-select" id="tf-attn-select" style="border-color:rgba(0,255,136,0.4)" onchange="tfRenderAttn()"></select>
+            <div class="tf-head-tabs" id="tf-head-tabs"></div>
+          </div>
+          <div class="tf-heat-wrap">
+            <div id="tf-heat-container"></div>
+          </div>
+        </div>
+
+        <!-- Try it yourself -->
+        <div>
+          <div class="section-title green-ttl">TRY IT YOURSELF</div>
+          <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+            <input type="text" class="cyber-input" id="tf-infer-input" placeholder="e.g. 3 7 2 9" style="max-width:220px;border-color:rgba(0,255,136,0.4)">
+            <button class="cyber-btn green" onclick="tfRunInference()"><span class="btn-txt">RUN INFERENCE</span></button>
+          </div>
+          <div id="tf-infer-error" style="font-family:var(--mono);font-size:0.65rem;color:var(--red);margin-top:0.3rem;min-height:1em"></div>
+          <div style="margin-top:0.6rem">
+            <div style="font-family:var(--mono);font-size:0.65rem;color:var(--dim);margin-bottom:0.25rem">INPUT → PREDICTED OUTPUT</div>
+            <div class="tf-tok-row" id="tf-infer-src"></div>
+            <div style="height:0.4rem"></div>
+            <div class="tf-tok-row" id="tf-infer-pred"></div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /game-col -->
+
+    <!-- CONTROL COLUMN -->
+    <div class="proj-ctrl-col">
+
+      <!-- Task setup -->
+      <div>
+        <div class="section-title green-ttl">TASK SETUP</div>
+        <div style="display:flex;flex-direction:column;gap:0.6rem">
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+              <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">SEQUENCE LENGTH</span>
+              <span style="font-family:var(--mono);font-size:0.72rem;color:var(--green)" id="tf-digits-lbl">4 digits</span>
+            </div>
+            <input type="range" class="cyber-slider" min="2" max="6" step="1" value="4" id="tf-digits" oninput="tfDigitsChange(this.value)">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+              <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">LEARNING RATE</span>
+              <span style="font-family:var(--mono);font-size:0.72rem;color:var(--green)" id="tf-lr-lbl">0.010</span>
+            </div>
+            <input type="range" class="cyber-slider" min="2" max="30" step="1" value="10" id="tf-lr" oninput="tfLrChange(this.value)">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+              <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">BATCH SIZE</span>
+              <span style="font-family:var(--mono);font-size:0.72rem;color:var(--green)" id="tf-bs-lbl">8</span>
+            </div>
+            <input type="range" class="cyber-slider" min="1" max="16" step="1" value="8" id="tf-bs" oninput="tfBsChange(this.value)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Model info -->
+      <div>
+        <div class="section-title green-ttl">MODEL ARCHITECTURE</div>
+        <div style="display:flex;flex-direction:column;gap:0.4rem">
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">D_MODEL</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--green)" id="tf-info-dmodel">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">ATTENTION HEADS</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--cyan)" id="tf-info-heads">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">ENCODER/DECODER LAYERS</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--cyan)" id="tf-info-layers">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">D_FF</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--cyan)" id="tf-info-dff">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:0.35rem 0.5rem;border:1px solid var(--border);background:rgba(0,0,0,0.2)">
+            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">TRAINABLE PARAMS</span>
+            <span style="font-family:var(--orb);font-size:0.8rem;color:var(--purple)" id="tf-info-params">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div>
+        <div class="section-title green-ttl">ARCHITECTURE NOTES</div>
+        <div style="display:flex;flex-direction:column;gap:0.6rem">
+          <div class="heuristic-card" style="padding:0.7rem">
+            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--green);margin-bottom:0.3rem">SCALED DOT-PRODUCT ATTENTION</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Attention(Q,K,V) = softmax(QKᵀ / √d_k)·V — each position gathers a weighted mix of value vectors based on query-key similarity.</div>
+          </div>
+          <div class="heuristic-card" style="padding:0.7rem">
+            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--cyan);margin-bottom:0.3rem">CAUSAL MASK</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Decoder self-attention blocks future positions — position i can only attend to positions ≤ i, so generation stays autoregressive.</div>
+          </div>
+          <div class="heuristic-card" style="padding:0.7rem">
+            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--purple);margin-bottom:0.3rem">PRE-NORM RESIDUALS</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Each sub-layer normalizes its input first, then adds its output back to the un-normalized residual stream. This Pre-LN order (vs. the original paper's Post-LN) trains from scratch without a learning-rate warmup — Post-LN vanished gradient to the attention weights in testing.</div>
+          </div>
+          <div class="heuristic-card" style="padding:0.7rem">
+            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--yellow);margin-bottom:0.3rem">⚠ HAND-ROLLED AUTOGRAD</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Every matmul, softmax, and layernorm gradient below is derived and coded by hand — no autodiff library. Dropout is omitted for determinism at this tiny scale.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /ctrl-col -->
+  </div><!-- /proj-body -->
+</div><!-- /proj-page -->
+</div><!-- /page-transformer -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  MINI AUTOGRAD ENGINE (matrices as row-major nested arrays)
+// ═══════════════════════════════════════════════════════════════════
+let TAPE = [];
+function zeros(r,c){return Array.from({length:r},()=>new Array(c).fill(0));}
+function ones(r,c){return Array.from({length:r},()=>new Array(c).fill(1));}
+
+function makeParam(data){
+  return {data,grad:zeros(data.length,data[0].length),rows:data.length,cols:data[0].length,
+          m:zeros(data.length,data[0].length),v:zeros(data.length,data[0].length),isParam:true};
+}
+function randParam(r,c,scale){
+  const data=Array.from({length:r},()=>Array.from({length:c},()=>(Math.random()*2-1)*scale));
+  return makeParam(data);
+}
+function onesParam(r,c){return makeParam(ones(r,c));}
+function zerosParam(r,c){return makeParam(zeros(r,c));}
+
+function newNode(data,parents){
+  const node={data,grad:zeros(data.length,data[0].length),rows:data.length,cols:data[0].length,parents};
+  TAPE.push(node);
+  return node;
+}
+
+function matmul(A,B){
+  const m=A.rows,k=A.cols,n=B.cols,data=zeros(m,n);
+  for(let i=0;i<m;i++)for(let j=0;j<n;j++){let s=0;for(let t=0;t<k;t++)s+=A.data[i][t]*B.data[t][j];data[i][j]=s;}
+  const node=newNode(data,[A,B]);
+  node.backward=function(){
+    for(let i=0;i<m;i++)for(let t=0;t<k;t++){let s=0;for(let j=0;j<n;j++)s+=node.grad[i][j]*B.data[t][j];A.grad[i][t]+=s;}
+    for(let t=0;t<k;t++)for(let j=0;j<n;j++){let s=0;for(let i=0;i<m;i++)s+=A.data[i][t]*node.grad[i][j];B.grad[t][j]+=s;}
+  };
+  return node;
+}
+
+function addRowBias(A,b){
+  const data=A.data.map(row=>row.map((v,j)=>v+b.data[0][j]));
+  const node=newNode(data,[A,b]);
+  node.backward=function(){
+    for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++){A.grad[i][j]+=node.grad[i][j];b.grad[0][j]+=node.grad[i][j];}
+  };
+  return node;
+}
+
+function add(A,B){
+  const data=A.data.map((row,i)=>row.map((v,j)=>v+B.data[i][j]));
+  const node=newNode(data,[A,B]);
+  node.backward=function(){
+    for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++){A.grad[i][j]+=node.grad[i][j];B.grad[i][j]+=node.grad[i][j];}
+  };
+  return node;
+}
+
+function addConst(A,C){
+  const data=A.data.map((row,i)=>row.map((v,j)=>v+C[i][j]));
+  const node=newNode(data,[A]);
+  node.backward=function(){for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++)A.grad[i][j]+=node.grad[i][j];};
+  return node;
+}
+
+function scaleConst(A,k){
+  const data=A.data.map(row=>row.map(v=>v*k));
+  const node=newNode(data,[A]);
+  node.backward=function(){for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++)A.grad[i][j]+=node.grad[i][j]*k;};
+  return node;
+}
+
+function transposeMat(A){
+  const data=zeros(A.cols,A.rows);
+  for(let i=0;i<A.rows;i++)for(let j=0;j<A.cols;j++)data[j][i]=A.data[i][j];
+  const node=newNode(data,[A]);
+  node.backward=function(){for(let i=0;i<A.rows;i++)for(let j=0;j<A.cols;j++)A.grad[i][j]+=node.grad[j][i];};
+  return node;
+}
+
+function maskedFillCausal(A){
+  const data=A.data.map((row,i)=>row.map((v,j)=>j<=i?v:-1e9));
+  const node=newNode(data,[A]);
+  node.backward=function(){for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++)if(j<=i)A.grad[i][j]+=node.grad[i][j];};
+  return node;
+}
+
+function softmaxRows(A){
+  const data=A.data.map(row=>{
+    const mx=Math.max(...row),ex=row.map(v=>Math.exp(v-mx)),s=ex.reduce((a,b)=>a+b,0);
+    return ex.map(v=>v/s);
+  });
+  const node=newNode(data,[A]);
+  node.backward=function(){
+    for(let i=0;i<node.rows;i++){
+      const S=node.data[i],dC=node.grad[i];
+      let dot=0;for(let j=0;j<S.length;j++)dot+=dC[j]*S[j];
+      for(let j=0;j<S.length;j++)A.grad[i][j]+=S[j]*(dC[j]-dot);
+    }
+  };
+  return node;
+}
+
+function reluApply(A){
+  const data=A.data.map(row=>row.map(v=>Math.max(0,v)));
+  const node=newNode(data,[A]);
+  node.backward=function(){for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++)A.grad[i][j]+=(A.data[i][j]>0?node.grad[i][j]:0);};
+  return node;
+}
+
+function layerNorm(A,gamma,beta,eps=1e-5){
+  const n=A.cols,xhatRows=[],stdRows=[];
+  const data=A.data.map(row=>{
+    const mu=row.reduce((a,b)=>a+b,0)/n;
+    const vr=row.reduce((a,b)=>a+(b-mu)*(b-mu),0)/n;
+    const std=Math.sqrt(vr+eps);
+    const xhat=row.map(x=>(x-mu)/std);
+    xhatRows.push(xhat);stdRows.push(std);
+    return xhat.map((xh,j)=>xh*gamma.data[0][j]+beta.data[0][j]);
+  });
+  const node=newNode(data,[A,gamma,beta]);
+  node.backward=function(){
+    for(let i=0;i<node.rows;i++){
+      const dC=node.grad[i],xhat=xhatRows[i],std=stdRows[i];
+      const dxhat=dC.map((d,j)=>d*gamma.data[0][j]);
+      let sumDxhat=0,sumDxhatXhat=0;
+      for(let j=0;j<n;j++){sumDxhat+=dxhat[j];sumDxhatXhat+=dxhat[j]*xhat[j];}
+      for(let j=0;j<n;j++){
+        A.grad[i][j]+=(dxhat[j]-sumDxhat/n-xhat[j]*sumDxhatXhat/n)/std;
+        gamma.grad[0][j]+=dC[j]*xhat[j];
+        beta.grad[0][j]+=dC[j];
+      }
+    }
+  };
+  return node;
+}
+
+function embeddingLookup(table,indices){
+  const data=indices.map(idx=>table.data[idx].slice());
+  const node=newNode(data,[table]);
+  node.backward=function(){indices.forEach((idx,i)=>{for(let j=0;j<node.cols;j++)table.grad[idx][j]+=node.grad[i][j];});};
+  return node;
+}
+
+function concatCols(list){
+  const rows=list[0].rows;
+  const totalCols=list.reduce((s,m)=>s+m.cols,0);
+  const data=zeros(rows,totalCols);
+  const offsets=[];let offset=0;
+  list.forEach(m=>{offsets.push(offset);for(let i=0;i<rows;i++)for(let j=0;j<m.cols;j++)data[i][offset+j]=m.data[i][j];offset+=m.cols;});
+  const node=newNode(data,list);
+  node.backward=function(){
+    list.forEach((m,idx)=>{const off=offsets[idx];for(let i=0;i<rows;i++)for(let j=0;j<m.cols;j++)m.grad[i][j]+=node.grad[i][off+j];});
+  };
+  return node;
+}
+
+function sliceCols(A,start,end){
+  const data=A.data.map(row=>row.slice(start,end));
+  const node=newNode(data,[A]);
+  node.backward=function(){for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++)A.grad[i][start+j]+=node.grad[i][j];};
+  return node;
+}
+
+function crossEntropyLoss(logits,targetIdx){
+  const L=logits.rows,V=logits.cols;
+  const softmax=logits.data.map(row=>{
+    const mx=Math.max(...row),ex=row.map(v=>Math.exp(v-mx)),s=ex.reduce((a,b)=>a+b,0);
+    return ex.map(v=>v/s);
+  });
+  let loss=0;for(let i=0;i<L;i++)loss+=-Math.log(Math.max(softmax[i][targetIdx[i]],1e-12));
+  loss/=L;
+  const node=newNode([[loss]],[logits]);
+  node.softmax=softmax;
+  node.backward=function(){
+    const scale=node.grad[0][0];
+    for(let i=0;i<L;i++)for(let j=0;j<V;j++){
+      const onehot=(j===targetIdx[i])?1:0;
+      logits.grad[i][j]+=scale*(softmax[i][j]-onehot)/L;
+    }
+  };
+  return node;
+}
+
+function backwardPass(lossNode){
+  lossNode.grad[0][0]=1;
+  for(let idx=TAPE.length-1;idx>=0;idx--){if(TAPE[idx].backward)TAPE[idx].backward();}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TRANSFORMER MODEL
+// ═══════════════════════════════════════════════════════════════════
+const VOCAB_SIZE=12, SOS=10, EOS=11;
+const D_MODEL=24, NUM_HEADS=3, NUM_LAYERS=2, D_FF=48, MAX_SEQ_LEN=12;
+const INIT_SCALE=1/Math.sqrt(D_MODEL), FFN_SCALE2=1/Math.sqrt(D_FF);
+
+let MODEL=null, ALL_PARAMS=[], PE=null;
+let ADAM={lr:0.01,b1:0.9,b2:0.999,eps:1e-8,t:0};
+let CFG={numDigits:4,batchSize:8};
+let lossHistory=[], stepCount=0, tfRunning=false, tfTimer=null, tfSpeed=100;
+let lastAttnStore=null, lastAttnTokens=null;
+
+function buildPE(maxLen,d){
+  const pe=zeros(maxLen,d);
+  for(let pos=0;pos<maxLen;pos++)for(let i=0;i<d;i+=2){
+    const div=Math.exp(-Math.log(10000)*i/d);
+    pe[pos][i]=Math.sin(pos*div);
+    if(i+1<d)pe[pos][i+1]=Math.cos(pos*div);
+  }
+  return pe;
+}
+
+function mkAttnWeights(){
+  return {Wq:randParam(D_MODEL,D_MODEL,INIT_SCALE),Wk:randParam(D_MODEL,D_MODEL,INIT_SCALE),
+          Wv:randParam(D_MODEL,D_MODEL,INIT_SCALE),Wo:randParam(D_MODEL,D_MODEL,INIT_SCALE)};
+}
+function mkEncLayer(){
+  return {mha:mkAttnWeights(),
+          ln1g:onesParam(1,D_MODEL),ln1b:zerosParam(1,D_MODEL),
+          ln2g:onesParam(1,D_MODEL),ln2b:zerosParam(1,D_MODEL),
+          ffnW1:randParam(D_MODEL,D_FF,INIT_SCALE),ffnB1:zerosParam(1,D_FF),
+          ffnW2:randParam(D_FF,D_MODEL,FFN_SCALE2),ffnB2:zerosParam(1,D_MODEL)};
+}
+function mkDecLayer(){
+  return {maskedMha:mkAttnWeights(),crossMha:mkAttnWeights(),
+          ln1g:onesParam(1,D_MODEL),ln1b:zerosParam(1,D_MODEL),
+          ln2g:onesParam(1,D_MODEL),ln2b:zerosParam(1,D_MODEL),
+          ln3g:onesParam(1,D_MODEL),ln3b:zerosParam(1,D_MODEL),
+          ffnW1:randParam(D_MODEL,D_FF,INIT_SCALE),ffnB1:zerosParam(1,D_FF),
+          ffnW2:randParam(D_FF,D_MODEL,FFN_SCALE2),ffnB2:zerosParam(1,D_MODEL)};
+}
+
+function collectParams(m){
+  const out=[m.srcEmbed,m.tgtEmbed,m.finalW,m.finalB];
+  m.encLayers.forEach(l=>{out.push(l.mha.Wq,l.mha.Wk,l.mha.Wv,l.mha.Wo,l.ln1g,l.ln1b,l.ln2g,l.ln2b,l.ffnW1,l.ffnB1,l.ffnW2,l.ffnB2);});
+  m.decLayers.forEach(l=>{out.push(l.maskedMha.Wq,l.maskedMha.Wk,l.maskedMha.Wv,l.maskedMha.Wo,
+                                   l.crossMha.Wq,l.crossMha.Wk,l.crossMha.Wv,l.crossMha.Wo,
+                                   l.ln1g,l.ln1b,l.ln2g,l.ln2b,l.ln3g,l.ln3b,l.ffnW1,l.ffnB1,l.ffnW2,l.ffnB2);});
+  return out;
+}
+
+function buildModel(){
+  MODEL={
+    srcEmbed:randParam(VOCAB_SIZE,D_MODEL,INIT_SCALE),
+    tgtEmbed:randParam(VOCAB_SIZE,D_MODEL,INIT_SCALE),
+    encLayers:Array.from({length:NUM_LAYERS},mkEncLayer),
+    decLayers:Array.from({length:NUM_LAYERS},mkDecLayer),
+    finalW:randParam(D_MODEL,VOCAB_SIZE,INIT_SCALE),
+    finalB:zerosParam(1,VOCAB_SIZE),
+  };
+  ALL_PARAMS=collectParams(MODEL);
+  ADAM.t=0;
+  lossHistory=[];stepCount=0;
+  if(!PE)PE=buildPE(MAX_SEQ_LEN,D_MODEL);
+}
+
+function multiHeadAttention(Xq,Xk,Xv,W,causal,captureKey,attnStore){
+  const Q=matmul(Xq,W.Wq),K=matmul(Xk,W.Wk),V=matmul(Xv,W.Wv);
+  const dk=Q.cols/NUM_HEADS,heads=[];
+  for(let h=0;h<NUM_HEADS;h++){
+    const Qh=sliceCols(Q,h*dk,(h+1)*dk),Kh=sliceCols(K,h*dk,(h+1)*dk),Vh=sliceCols(V,h*dk,(h+1)*dk);
+    let scores=scaleConst(matmul(Qh,transposeMat(Kh)),1/Math.sqrt(dk));
+    if(causal)scores=maskedFillCausal(scores);
+    const weights=softmaxRows(scores);
+    if(attnStore)attnStore[captureKey+'_h'+h]=weights.data.map(r=>r.slice());
+    heads.push(matmul(weights,Vh));
+  }
+  return matmul(concatCols(heads),W.Wo);
+}
+
+function encoderBlock(x,layer,attnStore,tag){
+  const xn1=layerNorm(x,layer.ln1g,layer.ln1b);
+  const mhaOut=multiHeadAttention(xn1,xn1,xn1,layer.mha,false,tag+'_enc_self',attnStore);
+  const x1=add(x,mhaOut);
+  const xn2=layerNorm(x1,layer.ln2g,layer.ln2b);
+  const h1=reluApply(addRowBias(matmul(xn2,layer.ffnW1),layer.ffnB1));
+  const ffnOut=addRowBias(matmul(h1,layer.ffnW2),layer.ffnB2);
+  return add(x1,ffnOut);
+}
+
+function decoderBlock(x,memory,layer,attnStore,tag){
+  const xn1=layerNorm(x,layer.ln1g,layer.ln1b);
+  const selfOut=multiHeadAttention(xn1,xn1,xn1,layer.maskedMha,true,tag+'_dec_self',attnStore);
+  const x1=add(x,selfOut);
+  const xn2=layerNorm(x1,layer.ln2g,layer.ln2b);
+  const crossOut=multiHeadAttention(xn2,memory,memory,layer.crossMha,false,tag+'_cross',attnStore);
+  const x2=add(x1,crossOut);
+  const xn3=layerNorm(x2,layer.ln3g,layer.ln3b);
+  const h1=reluApply(addRowBias(matmul(xn3,layer.ffnW1),layer.ffnB1));
+  const ffnOut=addRowBias(matmul(h1,layer.ffnW2),layer.ffnB2);
+  return add(x2,ffnOut);
+}
+
+function encode(srcIdx,attnStore){
+  let x=addConst(scaleConst(embeddingLookup(MODEL.srcEmbed,srcIdx),Math.sqrt(D_MODEL)),PE.slice(0,srcIdx.length));
+  MODEL.encLayers.forEach((layer,li)=>{x=encoderBlock(x,layer,attnStore,'L'+li);});
+  return x;
+}
+function decode(tgtIdx,memory,attnStore){
+  let x=addConst(scaleConst(embeddingLookup(MODEL.tgtEmbed,tgtIdx),Math.sqrt(D_MODEL)),PE.slice(0,tgtIdx.length));
+  MODEL.decLayers.forEach((layer,li)=>{x=decoderBlock(x,memory,layer,attnStore,'L'+li);});
+  return x;
+}
+
+function forwardPass(srcIdx,tgtInIdx,tgtOutIdx,attnStore){
+  TAPE=[];
+  const enc=encode(srcIdx,attnStore);
+  const dec=decode(tgtInIdx,enc,attnStore);
+  const logits=addRowBias(matmul(dec,MODEL.finalW),MODEL.finalB);
+  const loss=tgtOutIdx?crossEntropyLoss(logits,tgtOutIdx):null;
+  return {logits,loss};
+}
+
+function adamStep(batchSize){
+  ADAM.t++;
+  ALL_PARAMS.forEach(p=>{
+    for(let i=0;i<p.rows;i++)for(let j=0;j<p.cols;j++){
+      const g=p.grad[i][j]/batchSize;
+      p.m[i][j]=ADAM.b1*p.m[i][j]+(1-ADAM.b1)*g;
+      p.v[i][j]=ADAM.b2*p.v[i][j]+(1-ADAM.b2)*g*g;
+      const mhat=p.m[i][j]/(1-Math.pow(ADAM.b1,ADAM.t));
+      const vhat=p.v[i][j]/(1-Math.pow(ADAM.b2,ADAM.t));
+      p.data[i][j]-=ADAM.lr*mhat/(Math.sqrt(vhat)+ADAM.eps);
+      p.grad[i][j]=0;
+    }
+  });
+}
+
+function genExample(numDigits){
+  const digits=Array.from({length:numDigits},()=>Math.floor(Math.random()*10));
+  return {digits,src:[SOS,...digits,EOS],tgtIn:[SOS,...digits],tgtOut:[...digits,EOS]};
+}
+
+function trainStep(){
+  const bs=CFG.batchSize;
+  let lossSum=0,correct=0,total=0,lastExample=null,lastPred=null,lastAttn=null;
+  for(let b=0;b<bs;b++){
+    const ex=genExample(CFG.numDigits);
+    const attnStore={};
+    const {loss}=forwardPass(ex.src,ex.tgtIn,ex.tgtOut,attnStore);
+    backwardPass(loss);
+    lossSum+=loss.data[0][0];
+    const pred=loss.softmax.map(row=>row.indexOf(Math.max(...row)));
+    pred.forEach((p,i)=>{total++;if(p===ex.tgtOut[i])correct++;});
+    if(b===bs-1){lastExample=ex;lastPred=pred;lastAttn=attnStore;}
+  }
+  adamStep(bs);
+  stepCount++;
+  const avgLoss=lossSum/bs,acc=correct/total;
+  lossHistory.push(avgLoss);if(lossHistory.length>300)lossHistory.shift();
+  return {avgLoss,acc,lastExample,lastPred,lastAttn};
+}
+
+function inferGreedy(digits){
+  const attnStore={};
+  const src=[SOS,...digits,EOS];
+  TAPE=[];
+  const enc=encode(src,attnStore);
+  let ys=[SOS];
+  for(let step=0;step<digits.length+1;step++){
+    const dec=decode(ys,enc,attnStore);
+    const logits=addRowBias(matmul(dec,MODEL.finalW),MODEL.finalB);
+    const lastRow=logits.data[logits.rows-1];
+    const next=lastRow.indexOf(Math.max(...lastRow));
+    ys.push(next);
+    if(next===EOS)break;
+  }
+  return {src,tgtIn:ys.slice(0,-1),pred:ys.slice(1),attnStore};
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  UI WIRING
+// ═══════════════════════════════════════════════════════════════════
+function tfTokLabel(idx){return idx===SOS?'⟨S⟩':idx===EOS?'⟨E⟩':String(idx);}
+
+function tfRenderTokens(containerId,indices,cls,wrongMask){
+  const el=document.getElementById(containerId);
+  el.innerHTML='';
+  indices.forEach((idx,i)=>{
+    const d=document.createElement('div');
+    d.className='tf-tok '+cls+((wrongMask&&wrongMask[i])?' tf-wrong':'');
+    d.textContent=tfTokLabel(idx);
+    el.appendChild(d);
+  });
+}
+
+function tfUpdateExampleDisplay(ex,pred){
+  tfRenderTokens('tf-row-src',ex.src,'');
+  tfRenderTokens('tf-row-tgt',ex.tgtOut,'tf-tgt');
+  const wrong=pred.map((p,i)=>p!==ex.tgtOut[i]);
+  tfRenderTokens('tf-row-pred',pred,'tf-pred',wrong);
+}
+
+function tfDrawLossChart(){
+  const canvas=document.getElementById('tf-loss-canvas');
+  const W=canvas.width=canvas.clientWidth,H=canvas.height=140;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(lossHistory.length<2)return;
+  const maxL=Math.max(...lossHistory,0.01);
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=1.5;ctx.beginPath();
+  lossHistory.forEach((l,i)=>{
+    const x=i/(lossHistory.length-1)*W;
+    const y=H-(l/maxL)*H*0.85-8;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+
+function tfAppendLog(html){
+  const el=document.getElementById('tf-log');
+  const ph=el.querySelector('span.log-info');
+  if(ph&&ph.textContent.includes('//'))el.innerHTML='';
+  const line=document.createElement('div');line.innerHTML=html;
+  el.appendChild(line);el.scrollTop=el.scrollHeight;
+  while(el.children.length>60)el.removeChild(el.firstChild);
+}
+
+function tfWriteTerminal(lines){
+  const el=document.getElementById('tf-terminal');
+  el.innerHTML=lines.map(l=>`<div class="term-out">${l}</div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+const TF_ATTN_TYPES=[
+  {key:'enc_self',label:'Encoder Self-Attention'},
+  {key:'dec_self',label:'Decoder Self-Attention (causal)'},
+  {key:'cross',label:'Decoder → Encoder Cross-Attention'},
+];
+function tfPopulateAttnSelect(){
+  const sel=document.getElementById('tf-attn-select');
+  sel.innerHTML='';
+  for(let li=0;li<NUM_LAYERS;li++){
+    TF_ATTN_TYPES.forEach(t=>{
+      const opt=document.createElement('option');
+      opt.value='L'+li+'_'+t.key;
+      opt.textContent=`Layer ${li} — ${t.label}`;
+      sel.appendChild(opt);
+    });
+  }
+  tfPopulateHeadTabs();
+}
+let tfSelectedHead=0;
+function tfPopulateHeadTabs(){
+  const wrap=document.getElementById('tf-head-tabs');
+  wrap.innerHTML='';
+  for(let h=0;h<NUM_HEADS;h++){
+    const btn=document.createElement('button');
+    btn.className='tf-head-tab'+(h===tfSelectedHead?' act':'');
+    btn.textContent='HEAD '+h;
+    btn.onclick=()=>{tfSelectedHead=h;tfPopulateHeadTabs();tfRenderAttn();};
+    wrap.appendChild(btn);
+  }
+}
+
+function tfRenderAttn(){
+  if(!lastAttnStore||!lastAttnTokens)return;
+  const sel=document.getElementById('tf-attn-select').value;
+  const key=sel+'_h'+tfSelectedHead;
+  const weights=lastAttnStore[key];
+  const container=document.getElementById('tf-heat-container');
+  container.innerHTML='';
+  if(!weights)return;
+  const type=sel.split('_').slice(1).join('_');
+  let rowLabels,colLabels;
+  if(type==='enc_self'){rowLabels=colLabels=lastAttnTokens.src.map(tfTokLabel);}
+  else if(type==='dec_self'){rowLabels=colLabels=lastAttnTokens.tgtIn.map(tfTokLabel);}
+  else{rowLabels=lastAttnTokens.tgtIn.map(tfTokLabel);colLabels=lastAttnTokens.src.map(tfTokLabel);}
+  const grid=document.createElement('div');
+  grid.className='tf-heat-grid';
+  grid.style.gridTemplateColumns=`repeat(${colLabels.length+1},26px)`;
+  const mkLbl=(t)=>{const d=document.createElement('div');d.className='tf-heat-lbl';d.textContent=t;return d;};
+  grid.appendChild(mkLbl(''));
+  colLabels.forEach(l=>grid.appendChild(mkLbl(l)));
+  weights.forEach((row,i)=>{
+    grid.appendChild(mkLbl(rowLabels[i]));
+    row.forEach(w=>{
+      const cell=document.createElement('div');
+      cell.className='tf-heat-cell';
+      cell.style.background=`rgba(0,255,136,${Math.min(1,Math.max(0,w))})`;
+      cell.title=w.toFixed(3);
+      grid.appendChild(cell);
+    });
+  });
+  container.appendChild(grid);
+}
+
+function tfTick(){
+  const {avgLoss,acc,lastExample,lastPred,lastAttn}=trainStep();
+  document.getElementById('tf-stat-step').textContent=stepCount;
+  document.getElementById('tf-stat-loss').textContent=avgLoss.toFixed(3);
+  document.getElementById('tf-stat-acc').textContent=(acc*100).toFixed(1)+'%';
+  tfUpdateExampleDisplay(lastExample,lastPred);
+  tfDrawLossChart();
+  lastAttnStore=lastAttn;
+  lastAttnTokens={src:lastExample.src,tgtIn:lastExample.tgtIn};
+  tfRenderAttn();
+  if(stepCount%5===0||stepCount<10){
+    tfAppendLog(`<span class="log-info">[Step ${String(stepCount).padStart(5,' ')}]</span> <span class="log-val">loss=${avgLoss.toFixed(4)}</span>  <span class="log-best">acc=${(acc*100).toFixed(1)}%</span>`);
+  }
+}
+
+function tfTrainToggle(){
+  tfRunning=!tfRunning;
+  const btn=document.getElementById('tf-btn-train');
+  if(tfRunning){
+    btn.querySelector('.btn-txt').textContent='⏸ PAUSE';
+    document.getElementById('tf-stat-status').textContent='TRAINING';
+    tfWriteTerminal([
+      `<span class="l-g">user@ai:~$</span> <span class="l-w" style="color:var(--green)">python3 transformer.py --train</span>`,
+      `<span class="l-d">// Training encoder-decoder on copy task (Adam, lr=${ADAM.lr})...</span>`,
+    ]);
+    tfTimer=setInterval(tfTick,tfSpeed);
+  }else{
+    btn.querySelector('.btn-txt').textContent='▶ TRAIN';
+    document.getElementById('tf-stat-status').textContent='PAUSED';
+    clearInterval(tfTimer);
+  }
+}
+
+function tfSingleStep(){
+  if(tfRunning)tfTrainToggle();
+  tfTick();
+  document.getElementById('tf-stat-status').textContent='STEPPED';
+}
+
+function tfReset(){
+  if(tfRunning)tfTrainToggle();
+  buildModel();
+  document.getElementById('tf-stat-step').textContent='0';
+  document.getElementById('tf-stat-loss').textContent='—';
+  document.getElementById('tf-stat-acc').textContent='—';
+  document.getElementById('tf-stat-status').textContent='RESET';
+  document.getElementById('tf-log').innerHTML='<span class="log-info">// Weights reinitialized</span>';
+  document.getElementById('tf-row-src').innerHTML='';
+  document.getElementById('tf-row-tgt').innerHTML='';
+  document.getElementById('tf-row-pred').innerHTML='';
+  document.getElementById('tf-heat-container').innerHTML='';
+  lastAttnStore=null;lastAttnTokens=null;
+  tfDrawLossChart();
+  tfUpdateInfoPanel();
+  tfWriteTerminal([`<span class="l-d">// Click TRAIN to start optimizing the encoder-decoder on the copy task</span>`]);
+}
+
+function tfSpeedChange(v){
+  tfSpeed=parseInt(v);
+  document.getElementById('tf-speed-lbl').textContent=v+'ms/step';
+  if(tfRunning){clearInterval(tfTimer);tfTimer=setInterval(tfTick,tfSpeed);}
+}
+function tfDigitsChange(v){CFG.numDigits=parseInt(v);document.getElementById('tf-digits-lbl').textContent=v+' digits';}
+function tfLrChange(v){ADAM.lr=parseInt(v)/1000;document.getElementById('tf-lr-lbl').textContent=ADAM.lr.toFixed(3);}
+function tfBsChange(v){CFG.batchSize=parseInt(v);document.getElementById('tf-bs-lbl').textContent=v;}
+
+function tfUpdateInfoPanel(){
+  document.getElementById('tf-info-dmodel').textContent=D_MODEL;
+  document.getElementById('tf-info-heads').textContent=NUM_HEADS;
+  document.getElementById('tf-info-layers').textContent=NUM_LAYERS+' / '+NUM_LAYERS;
+  document.getElementById('tf-info-dff').textContent=D_FF;
+  const paramCount=ALL_PARAMS.reduce((s,p)=>s+p.rows*p.cols,0);
+  document.getElementById('tf-info-params').textContent=paramCount.toLocaleString();
+}
+
+function tfRunInference(){
+  const raw=document.getElementById('tf-infer-input').value.trim();
+  const errEl=document.getElementById('tf-infer-error');
+  const digits=raw.split(/[\s,]+/).filter(s=>s.length).map(s=>parseInt(s,10));
+  if(!digits.length||digits.some(d=>isNaN(d)||d<0||d>9)||digits.length>6){
+    errEl.textContent='Enter 1–6 digits (0–9), space or comma separated.';
+    return;
+  }
+  errEl.textContent='';
+  const {src,tgtIn,pred,attnStore}=inferGreedy(digits);
+  tfRenderTokens('tf-infer-src',src,'');
+  const wrong=pred.map((p,i)=>i<digits.length?p!==digits[i]:false);
+  tfRenderTokens('tf-infer-pred',pred,'tf-pred',wrong);
+  lastAttnStore=attnStore;
+  lastAttnTokens={src,tgtIn:[SOS,...pred.slice(0,-1)]};
+  tfRenderAttn();
+}
+
+// ── Init ──
+buildModel();
+tfPopulateAttnSelect();
+tfUpdateInfoPanel();
+tfDrawLossChart();
+window.addEventListener('resize',tfDrawLossChart);
+</script>
+</body>
+</html>
+
