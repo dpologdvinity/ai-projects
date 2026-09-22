@@ -178,6 +178,22 @@
             </div>
             <input type="range" class="cyber-slider" min="1" max="16" step="1" value="8" id="tf-bs" oninput="tfBsChange(this.value)">
           </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+              <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">RESIDUAL STYLE</span>
+            </div>
+            <select class="cyber-select" id="tf-residual-style" onchange="tfResidualStyleChange(this.value)" style="border-color:rgba(0,255,136,0.4);width:100%;background:rgba(0,0,0,0.3)">
+              <option value="preLN" selected>Pre-LN, no dropout (stable)</option>
+              <option value="postLN">Post-LN + dropout (classic)</option>
+            </select>
+          </div>
+          <div id="tf-dropout-control" style="display:none">
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+              <span style="font-family:var(--mono);font-size:0.68rem;color:var(--dim)">DROPOUT RATE</span>
+              <span style="font-family:var(--mono);font-size:0.72rem;color:var(--green)" id="tf-dropout-lbl">0.10</span>
+            </div>
+            <input type="range" class="cyber-slider" min="0" max="30" step="1" value="10" id="tf-dropout-rate" oninput="tfDropoutChange(this.value)">
+          </div>
         </div>
       </div>
 
@@ -221,12 +237,12 @@
             <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Decoder self-attention blocks future positions — position i can only attend to positions ≤ i, so generation stays autoregressive.</div>
           </div>
           <div class="heuristic-card" style="padding:0.7rem">
-            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--purple);margin-bottom:0.3rem">PRE-NORM RESIDUALS</div>
-            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Each sub-layer normalizes its input first, then adds its output back to the un-normalized residual stream. This Pre-LN order (vs. the original paper's Post-LN) trains from scratch without a learning-rate warmup — Post-LN vanished gradient to the attention weights in testing.</div>
+            <div style="font-family:var(--orb);font-size:0.65rem;color:var(--purple);margin-bottom:0.3rem">RESIDUAL NORMALIZATION</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)"><strong>Pre-LN (default):</strong> Normalizes input before the sub-layer, then adds output to residual. Trains from scratch without warmup.  <strong>Post-LN:</strong> Adds first, then normalizes. The original Transformer architecture, but requires warmup or careful initialization to avoid gradient issues. Use the selector above to switch.</div>
           </div>
           <div class="heuristic-card" style="padding:0.7rem">
             <div style="font-family:var(--orb);font-size:0.65rem;color:var(--yellow);margin-bottom:0.3rem">⚠ HAND-ROLLED AUTOGRAD</div>
-            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Every matmul, softmax, and layernorm gradient below is derived and coded by hand — no autodiff library. Dropout is omitted for determinism at this tiny scale.</div>
+            <div style="font-family:var(--raj);font-size:0.8rem;color:var(--dim)">Every matmul, softmax, layernorm, and dropout gradient is derived and coded by hand — no autodiff library.</div>
           </div>
         </div>
       </div>
@@ -342,6 +358,29 @@ function reluApply(A){
   return node;
 }
 
+function dropout(A,rate){
+  // Inverted dropout: scale during training, no rescaling at inference.
+  // Only apply if we're in training mode.
+  if(!TRAINING_MODE||rate===0){
+    // Inference or rate=0: pass through unchanged
+    const data=A.data.map(row=>row.slice());
+    const node=newNode(data,[A]);
+    node.backward=function(){for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++)A.grad[i][j]+=node.grad[i][j];};
+    return node;
+  }
+  // Training mode: drop elements with probability rate
+  const keep_prob=1-rate,scale=1/keep_prob;
+  const mask=A.data.map(row=>row.map(()=>Math.random()<keep_prob?1:0));
+  const data=A.data.map((row,i)=>row.map((v,j)=>v*mask[i][j]*scale));
+  const node=newNode(data,[A]);
+  node.mask=mask;
+  node.backward=function(){
+    for(let i=0;i<node.rows;i++)for(let j=0;j<node.cols;j++)
+      if(mask[i][j])A.grad[i][j]+=node.grad[i][j]*scale;
+  };
+  return node;
+}
+
 function layerNorm(A,gamma,beta,eps=1e-5){
   const n=A.cols,xhatRows=[],stdRows=[];
   const data=A.data.map(row=>{
@@ -430,9 +469,10 @@ const INIT_SCALE=1/Math.sqrt(D_MODEL), FFN_SCALE2=1/Math.sqrt(D_FF);
 
 let MODEL=null, ALL_PARAMS=[], PE=null;
 let ADAM={lr:0.01,b1:0.9,b2:0.999,eps:1e-8,t:0};
-let CFG={numDigits:4,batchSize:8};
+let CFG={numDigits:4,batchSize:8,residualStyle:'preLN',dropoutRate:0.1};
 let lossHistory=[], stepCount=0, tfRunning=false, tfTimer=null, tfSpeed=100;
 let lastAttnStore=null, lastAttnTokens=null;
+let TRAINING_MODE=false;
 
 function buildPE(maxLen,d){
   const pe=zeros(maxLen,d);
@@ -512,6 +552,19 @@ function encoderBlock(x,layer,attnStore,tag){
   return add(x1,ffnOut);
 }
 
+function encoderBlockPostLN(x,layer,attnStore,tag){
+  // Post-LN with dropout: Norm(x + Dropout(Sublayer(x)))
+  const mhaOut=multiHeadAttention(x,x,x,layer.mha,false,tag+'_enc_self',attnStore);
+  const d1=dropout(mhaOut,CFG.dropoutRate);
+  const x1=add(x,d1);
+  const n1=layerNorm(x1,layer.ln1g,layer.ln1b);
+  const h1=reluApply(addRowBias(matmul(n1,layer.ffnW1),layer.ffnB1));
+  const ffnOut=addRowBias(matmul(h1,layer.ffnW2),layer.ffnB2);
+  const d2=dropout(ffnOut,CFG.dropoutRate);
+  const x2=add(n1,d2);
+  return layerNorm(x2,layer.ln2g,layer.ln2b);
+}
+
 function decoderBlock(x,memory,layer,attnStore,tag){
   const xn1=layerNorm(x,layer.ln1g,layer.ln1b);
   const selfOut=multiHeadAttention(xn1,xn1,xn1,layer.maskedMha,true,tag+'_dec_self',attnStore);
@@ -525,23 +578,44 @@ function decoderBlock(x,memory,layer,attnStore,tag){
   return add(x2,ffnOut);
 }
 
+function decoderBlockPostLN(x,memory,layer,attnStore,tag){
+  // Post-LN with dropout: Norm(x + Dropout(Sublayer(x)))
+  const selfOut=multiHeadAttention(x,x,x,layer.maskedMha,true,tag+'_dec_self',attnStore);
+  const d1=dropout(selfOut,CFG.dropoutRate);
+  const x1=add(x,d1);
+  const n1=layerNorm(x1,layer.ln1g,layer.ln1b);
+  const crossOut=multiHeadAttention(n1,memory,memory,layer.crossMha,false,tag+'_cross',attnStore);
+  const d2=dropout(crossOut,CFG.dropoutRate);
+  const x2=add(n1,d2);
+  const n2=layerNorm(x2,layer.ln2g,layer.ln2b);
+  const h1=reluApply(addRowBias(matmul(n2,layer.ffnW1),layer.ffnB1));
+  const ffnOut=addRowBias(matmul(h1,layer.ffnW2),layer.ffnB2);
+  const d3=dropout(ffnOut,CFG.dropoutRate);
+  const x3=add(n2,d3);
+  return layerNorm(x3,layer.ln3g,layer.ln3b);
+}
+
 function encode(srcIdx,attnStore){
   let x=addConst(scaleConst(embeddingLookup(MODEL.srcEmbed,srcIdx),Math.sqrt(D_MODEL)),PE.slice(0,srcIdx.length));
-  MODEL.encLayers.forEach((layer,li)=>{x=encoderBlock(x,layer,attnStore,'L'+li);});
+  const blockFn=CFG.residualStyle==='postLN'?encoderBlockPostLN:encoderBlock;
+  MODEL.encLayers.forEach((layer,li)=>{x=blockFn(x,layer,attnStore,'L'+li);});
   return x;
 }
 function decode(tgtIdx,memory,attnStore){
   let x=addConst(scaleConst(embeddingLookup(MODEL.tgtEmbed,tgtIdx),Math.sqrt(D_MODEL)),PE.slice(0,tgtIdx.length));
-  MODEL.decLayers.forEach((layer,li)=>{x=decoderBlock(x,memory,layer,attnStore,'L'+li);});
+  const blockFn=CFG.residualStyle==='postLN'?decoderBlockPostLN:decoderBlock;
+  MODEL.decLayers.forEach((layer,li)=>{x=blockFn(x,memory,layer,attnStore,'L'+li);});
   return x;
 }
 
 function forwardPass(srcIdx,tgtInIdx,tgtOutIdx,attnStore){
   TAPE=[];
+  TRAINING_MODE=true;
   const enc=encode(srcIdx,attnStore);
   const dec=decode(tgtInIdx,enc,attnStore);
   const logits=addRowBias(matmul(dec,MODEL.finalW),MODEL.finalB);
   const loss=tgtOutIdx?crossEntropyLoss(logits,tgtOutIdx):null;
+  TRAINING_MODE=false;
   return {logits,loss};
 }
 
@@ -589,6 +663,7 @@ function inferGreedy(digits){
   const attnStore={};
   const src=[SOS,...digits,EOS];
   TAPE=[];
+  TRAINING_MODE=false;
   const enc=encode(src,attnStore);
   let ys=[SOS];
   for(let step=0;step<digits.length+1;step++){
@@ -784,6 +859,16 @@ function tfSpeedChange(v){
 function tfDigitsChange(v){CFG.numDigits=parseInt(v);document.getElementById('tf-digits-lbl').textContent=v+' digits';}
 function tfLrChange(v){ADAM.lr=parseInt(v)/1000;document.getElementById('tf-lr-lbl').textContent=ADAM.lr.toFixed(3);}
 function tfBsChange(v){CFG.batchSize=parseInt(v);document.getElementById('tf-bs-lbl').textContent=v;}
+function tfResidualStyleChange(v){
+  CFG.residualStyle=v;
+  const dropoutCtrl=document.getElementById('tf-dropout-control');
+  dropoutCtrl.style.display=(v==='postLN'?'block':'none');
+  tfReset();
+}
+function tfDropoutChange(v){
+  CFG.dropoutRate=parseInt(v)/100;
+  document.getElementById('tf-dropout-lbl').textContent=(CFG.dropoutRate).toFixed(2);
+}
 
 function tfUpdateInfoPanel(){
   document.getElementById('tf-info-dmodel').textContent=D_MODEL;
